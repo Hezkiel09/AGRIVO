@@ -47,7 +47,9 @@ class ResultScreen extends StatelessWidget {
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
-        elevation: 0,
+        elevation: 4,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.black.withOpacity(0.30),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black87),
           onPressed: () => Navigator.of(context).pop(),

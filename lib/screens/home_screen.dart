@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:agrivo/screens/live_scan_screen.dart';
 import 'package:agrivo/screens/result_screen.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -67,10 +68,8 @@ class _HomeScreenState extends State<HomeScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => ResultScreen(
-                imageFile: _imageFile!,
-                detections: results,
-              ),
+              builder: (context) =>
+                  ResultScreen(imageFile: _imageFile!, detections: results),
             ),
           );
         }
@@ -92,14 +91,20 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text(
-          'Deteksi Buah',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          'AGRISCAN',
+          style: TextStyle(
+            color: Color(0xFF1B4F1E), // Dark green color
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1,
+          ),
         ),
-        backgroundColor: Colors.green,
-        foregroundColor: Colors.white,
-        elevation: 0,
+        backgroundColor: Colors.white,
+        elevation: 4,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.black.withOpacity(0.30),
       ),
       body: SafeArea(
         child: Padding(
@@ -142,7 +147,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                 if (_detections != null)
                                   ..._detections!.map((d) {
                                     // Pastikan data x,y,width,height ada
-                                    if (d['x'] == null || d['y'] == null || d['width'] == null || d['height'] == null || d['image_width'] == null || d['image_height'] == null || d['image_width'] == 0) {
+                                    if (d['x'] == null ||
+                                        d['y'] == null ||
+                                        d['width'] == null ||
+                                        d['height'] == null ||
+                                        d['image_width'] == null ||
+                                        d['image_height'] == null ||
+                                        d['image_width'] == 0) {
                                       return const SizedBox(); // Jika data tidak lengkap, jangan gambar
                                     }
 
@@ -160,12 +171,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
                                     // Koordinat kotak (x dan y dari Roboflow adalah titik TENGAH kotak)
                                     double boxW = d['width'].toDouble() * scale;
-                                    double boxH = d['height'].toDouble() * scale;
-                                    double left = offsetX + (d['x'].toDouble() * scale) - (boxW / 2);
-                                    double top = offsetY + (d['y'].toDouble() * scale) - (boxH / 2);
-                                    
+                                    double boxH =
+                                        d['height'].toDouble() * scale;
+                                    double left =
+                                        offsetX +
+                                        (d['x'].toDouble() * scale) -
+                                        (boxW / 2);
+                                    double top =
+                                        offsetY +
+                                        (d['y'].toDouble() * scale) -
+                                        (boxH / 2);
+
                                     // Ambil nama kelas
-                                    String className = d['class']?.toString() ?? 'Object';
+                                    String className =
+                                        d['class']?.toString() ?? 'Object';
 
                                     return Positioned(
                                       left: left,
@@ -174,13 +193,19 @@ class _HomeScreenState extends State<HomeScreen> {
                                       height: boxH,
                                       child: Container(
                                         decoration: BoxDecoration(
-                                          border: Border.all(color: Colors.redAccent, width: 2.5),
+                                          border: Border.all(
+                                            color: Colors.redAccent,
+                                            width: 2.5,
+                                          ),
                                         ),
                                         child: Align(
                                           alignment: Alignment.topLeft,
                                           child: Container(
                                             color: Colors.redAccent,
-                                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 4,
+                                              vertical: 2,
+                                            ),
                                             child: Text(
                                               className,
                                               style: const TextStyle(
@@ -223,7 +248,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: () => _pickImage(ImageSource.camera),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const LiveScanScreen(),
+                          ),
+                        );
+                      },
                       icon: const Icon(Icons.camera_alt),
                       label: const Text('Kamera'),
                       style: ElevatedButton.styleFrom(

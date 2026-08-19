@@ -56,7 +56,7 @@ async def detect_vegetable(file: UploadFile = File(...)):
             img_data = img_file.read()
             encoded_image = base64.b64encode(img_data).decode("ascii")
             
-        url = "https://serverless.roboflow.com/infer/workflows/sayyid-ilmi-hubballillah/detect-count-and-visualize"
+        url = "https://serverless.roboflow.com/sayyid-ilmi-hubballillah/workflows/detect-count-and-visualize"
         payload = {
             "api_key": API_KEY,
             "inputs": {
