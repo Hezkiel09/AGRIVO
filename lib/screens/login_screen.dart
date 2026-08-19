@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'register_screen.dart';
-import 'home_screen.dart';
+import 'package:agrivo/api_service.dart';
+import 'package:agrivo/screens/home_screen.dart';
+import 'package:agrivo/screens/register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,27 +15,38 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
-  void _login() {
+  void _login() async {
     setState(() {
       _isLoading = true;
     });
 
-    // Simulate network request
-    Future.delayed(const Duration(seconds: 2), () {
+    bool success = await ApiService.login(
+      _emailController.text, 
+      _passwordController.text
+    );
+
+    if (mounted) {
       setState(() {
         _isLoading = false;
       });
-      // TODO: Handle actual login logic
-      if (mounted) {
+
+      if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Login berhasil (Dummy)')),
+          const SnackBar(content: Text('Login berhasil!')),
         );
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const HomeScreen()),
         );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Login gagal. Periksa kembali email dan password Anda.'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
-    });
+    }
   }
 
   @override

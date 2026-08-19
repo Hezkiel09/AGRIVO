@@ -11,8 +11,31 @@ class ApiService {
   }
 
   // ==========================================
-  // FITUR 1: AUTHENTICATION (LOGIN)
+  // FITUR 1: AUTHENTICATION (LOGIN & REGISTER)
   // ==========================================
+  static Future<bool> register(String email, String password, String role) async {
+    final url = Uri.parse('$baseUrl/register');
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'username': email,
+          'password': password,
+          'role': role,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        return true;
+      }
+      print("Register Gagal: ${response.body}");
+      return false;
+    } catch (e) {
+      print("Error Jaringan: $e");
+      return false;
+    }
+  }
   static Future<bool> login(String username, String password) async {
     final url = Uri.parse('$baseUrl/login');
     try {

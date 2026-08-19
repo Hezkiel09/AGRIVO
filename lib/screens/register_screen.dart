@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:agrivo/api_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -14,26 +15,36 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String _selectedRole = 'Petani';
   bool _isLoading = false;
 
-  void _register() {
+  void _register() async {
     setState(() {
       _isLoading = true;
     });
 
-    // Simulate network request
-    Future.delayed(const Duration(seconds: 2), () {
+    bool success = await ApiService.register(
+      _emailController.text,
+      _passwordController.text,
+      _selectedRole,
+    );
+
+    if (mounted) {
       setState(() {
         _isLoading = false;
       });
-      // TODO: Handle actual registration logic
-      if (mounted) {
+
+      if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Registrasi $_selectedRole berhasil (Dummy)'),
-          ),
+          const SnackBar(content: Text('Registrasi berhasil! Silakan login.')),
         );
         Navigator.pop(context); // Kembali ke halaman login
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Registrasi gagal. Cek kembali data Anda.'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
-    });
+    }
   }
 
   @override
@@ -49,7 +60,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Daftar Akun Baru', style: TextStyle(color: Colors.black87)),
+        title: const Text(
+          'Daftar Akun Baru',
+          style: TextStyle(color: Colors.black87),
+        ),
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black87),
@@ -71,10 +85,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: 8),
               const Text(
                 'Silakan isi form di bawah ini untuk mendaftar.',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
               const SizedBox(height: 32),
               TextField(
@@ -110,10 +121,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 items: ['Petani', 'UMKM']
-                    .map((role) => DropdownMenuItem(
-                          value: role,
-                          child: Text(role),
-                        ))
+                    .map(
+                      (role) =>
+                          DropdownMenuItem(value: role, child: Text(role)),
+                    )
                     .toList(),
                 onChanged: (value) {
                   if (value != null) {
