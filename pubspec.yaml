@@ -40,6 +40,8 @@ dependencies:
   http: ^1.6.0
   shared_preferences: ^2.5.5
   flutter_native_splash: ^2.4.8
+  image_picker: ^1.2.3
+  camera: ^0.12.0+2
 
 dev_dependencies:
   flutter_test:
@@ -91,12 +93,9 @@ flutter:
   #       - asset: fonts/TrajanPro_Bold.ttf
   #         weight: 700
   #
-  # For details regarding fonts from package dependencies,
-  # see https://flutter.dev/to/font-from-package
-
-assets:
- - assets/images/
- - assets/svgs/
+  assets:
+    - assets/images/
+    - assets/svgs/
 
 flutter_native_splash:
   android: true
