@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/app_routes.dart';
+import '../../widgets/custom_back_button.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -80,22 +81,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   children: [
                     // Back button (Only visible after page 1)
                     _currentPage > 0
-                        ? GestureDetector(
-                            onTap: _onPrevPage,
-                            child: Container(
-                              width: 40,
-                              height: 40,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF1B4F1E),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.arrow_back,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                            ),
-                          )
+                        ? CustomBackButton(onTap: _onPrevPage)
                         : const SizedBox(width: 40),
                     // Skip button
                     GestureDetector(
