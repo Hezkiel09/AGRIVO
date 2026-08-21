@@ -96,6 +96,7 @@ flutter:
   assets:
     - assets/images/
     - assets/svgs/
+    - assets/icon/
 
 flutter_native_splash:
   android: true

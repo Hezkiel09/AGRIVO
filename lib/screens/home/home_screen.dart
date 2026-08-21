@@ -1,13 +1,13 @@
 import 'dart:io';
 import 'dart:math';
 
-import 'package:agrivo/screens/live_scan_screen.dart';
-import 'package:agrivo/screens/result_screen.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../api_service.dart';
+import '../../core/app_routes.dart';
+import '../../widgets/custom_bottom_nav_bar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,10 +17,21 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  int _currentIndex = 0; // Starts at Beranda
+
+  // Scanner state variables
   XFile? _imageFile;
   List<dynamic>? _detections;
   final ImagePicker _picker = ImagePicker();
   bool _isUploading = false;
+
+  final List<String> _titles = [
+    'AGRIVO',
+    'PASAR TANI',
+    'AGRISCAN',
+    'KOMUNITAS',
+    'PROFIL SAYA',
+  ];
 
   Future<void> _pickImage(ImageSource source) async {
     try {
@@ -65,12 +76,13 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         } else {
           // Langsung pindah ke ResultScreen jika deteksi berhasil
-          Navigator.push(
+          Navigator.pushNamed(
             context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  ResultScreen(imageFile: _imageFile!, detections: results),
-            ),
+            AppRoutes.result,
+            arguments: {
+              'imageFile': _imageFile!,
+              'detections': results,
+            },
           );
         }
       }
@@ -88,15 +100,837 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Widget _buildBody() {
+    switch (_currentIndex) {
+      case 0:
+        return _buildBerandaTab();
+      case 1:
+        return _buildPasarTab();
+      case 2:
+        return _buildScanTab();
+      case 3:
+        return _buildKomunitasTab();
+      case 4:
+        return _buildAkunTab();
+      default:
+        return const SizedBox();
+    }
+  }
+
+  // --- BERANDA TAB ---
+  Widget _buildBerandaTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(left: 24.0, right: 24.0, top: 20.0, bottom: 100.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Card
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  Text(
+                    'Selamat Pagi 👋',
+                    style: TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w500),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Budi Harsono',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1B4F1E)),
+                  ),
+                ],
+              ),
+              const CircleAvatar(
+                radius: 26,
+                backgroundColor: Color(0xFF1B4F1E),
+                child: Text('BH', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          
+          // Weather Banner Card
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.green.shade800, Colors.green.shade500],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.green.withOpacity(0.2),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text(
+                      'Cuaca Hari Ini ☀️',
+                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Cerah, Sangat Baik Untuk Panen',
+                      style: TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
+                  ],
+                ),
+                const Text(
+                  '28°C',
+                  style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Price Trend Section
+          const Text(
+            'Tren Harga Pasar 📊',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1B4F1E)),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 110,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                _buildPriceCard('Tomat (Grade A)', 'Rp 18.000/kg', '+4%', true),
+                _buildPriceCard('Apel Manalagi', 'Rp 28.000/kg', '+2%', true),
+                _buildPriceCard('Cabai Merah', 'Rp 42.000/kg', '-1%', false),
+                _buildPriceCard('Wortel Lokal', 'Rp 11.000/kg', 'Stable', null),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Scan Banner Shortcut Card
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _currentIndex = 2; // Go to Scan tab
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.green.shade100, width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.02),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1B4F1E).withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.qr_code_scanner, color: Color(0xFF1B4F1E), size: 28),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text(
+                          'Pindai & Cek Grade 🔍',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1B4F1E)),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Ambil foto hasil panen Anda dan tentukan grade & harga pasarnya secara instan.',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPriceCard(String title, String price, String change, bool? isUp) {
+    return Container(
+      width: 150,
+      margin: const EdgeInsets.only(right: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87), maxLines: 1, overflow: TextOverflow.ellipsis),
+          Text(price, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1B4F1E))),
+          Row(
+            children: [
+              if (isUp == true) const Icon(Icons.arrow_upward, color: Colors.green, size: 12),
+              if (isUp == false) const Icon(Icons.arrow_downward, color: Colors.red, size: 12),
+              if (isUp == null) const Icon(Icons.remove, color: Colors.grey, size: 12),
+              const SizedBox(width: 4),
+              Text(
+                change,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: isUp == true ? Colors.green : (isUp == false ? Colors.red : Colors.grey),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- PASAR TAB ---
+  Widget _buildPasarTab() {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              TextField(
+                decoration: InputDecoration(
+                  hintText: 'Cari hasil panen, lelang, sayuran...',
+                  prefixIcon: const Icon(Icons.search),
+                  filled: true,
+                  fillColor: Colors.grey.shade100,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 38,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    _buildCategoryChip('Semua', true),
+                    _buildCategoryChip('Sayuran', false),
+                    _buildCategoryChip('Buah-buahan', false),
+                    _buildCategoryChip('Lelang Aktif', false),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.only(bottom: 100),
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: const [
+                    Text('Lelang Sedang Berlangsung 🔥', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1B4F1E))),
+                    Text('Lihat Semua', style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 210,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.only(left: 16),
+                  children: [
+                    _buildLiveBidCard('Apel Manalagi', 'assets/images/apel1.png', 'Grade A', 'Rp 22.000/kg', '01j 42m'),
+                    _buildLiveBidCard('Tomat Beef', 'assets/images/boxscanfruit.png', 'Grade A', 'Rp 14.500/kg', '45m'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: const [
+                    Text('Beli Langsung dari Kebun 🥬', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1B4F1E))),
+                    Text('Lihat Semua', style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: 2,
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    return _buildDirectBuyCard('Sawi Hijau Organik', 'assets/images/boxscanfruit.png', 'Rp 8.000 / ikat', 'Toko Tani Makmur');
+                  }
+                  return _buildDirectBuyCard('Jeruk Sunkist Fresh', 'assets/images/apel1.png', 'Rp 25.000 / kg', 'Petani Berkah Jaya');
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCategoryChip(String text, bool isSelected) {
+    return Container(
+      margin: const EdgeInsets.only(right: 8),
+      child: ChoiceChip(
+        label: Text(text),
+        selected: isSelected,
+        onSelected: (_) {},
+        selectedColor: const Color(0xFF1B4F1E),
+        backgroundColor: Colors.grey.shade100,
+        labelStyle: TextStyle(
+          color: isSelected ? Colors.white : Colors.black87,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      ),
+    );
+  }
+
+  Widget _buildLiveBidCard(String name, String imgPath, String grade, String bid, String time) {
+    return Container(
+      width: 170,
+      margin: const EdgeInsets.only(right: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+              child: Image.asset(imgPath, width: double.infinity, fit: BoxFit.cover),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(grade, style: const TextStyle(color: Colors.green, fontSize: 9, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text('Bid Tertinggi: $bid', style: const TextStyle(color: Colors.orange, fontSize: 11, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(Icons.access_time, size: 12, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Text(time, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDirectBuyCard(String name, String imgPath, String price, String shopName) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.asset(imgPath, width: 80, height: 80, fit: BoxFit.cover),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                const SizedBox(height: 4),
+                Text(price, style: const TextStyle(color: Color(0xFF1B4F1E), fontWeight: FontWeight.bold, fontSize: 13)),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(Icons.store, size: 14, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Text(shopName, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {},
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1B4F1E),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              elevation: 0,
+            ),
+            child: const Text('Beli', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- SCAN TAB ---
+  Widget _buildScanTab() {
+    return Padding(
+      padding: const EdgeInsets.only(left: 24.0, right: 24.0, top: 20.0, bottom: 100.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Colors.grey[400]!,
+                  width: 2,
+                  style: BorderStyle.solid,
+                ),
+              ),
+              child: _imageFile != null
+                  ? LayoutBuilder(
+                      builder: (context, constraints) {
+                        return Stack(
+                          children: [
+                            Positioned.fill(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(14),
+                                child: kIsWeb
+                                    ? Image.network(
+                                        _imageFile!.path,
+                                        fit: BoxFit.contain,
+                                      )
+                                    : Image.file(
+                                        File(_imageFile!.path),
+                                        fit: BoxFit.contain,
+                                      ),
+                              ),
+                            ),
+                            if (_detections != null)
+                              ..._detections!.map((d) {
+                                if (d['x'] == null ||
+                                    d['y'] == null ||
+                                    d['width'] == null ||
+                                    d['height'] == null ||
+                                    d['image_width'] == null ||
+                                    d['image_height'] == null ||
+                                    d['image_width'] == 0) {
+                                  return const SizedBox();
+                                }
+
+                                double imgW = d['image_width'].toDouble();
+                                double imgH = d['image_height'].toDouble();
+                                double cw = constraints.maxWidth;
+                                double ch = constraints.maxHeight;
+
+                                double scale = min(cw / imgW, ch / imgH);
+                                double renderedW = imgW * scale;
+                                double renderedH = imgH * scale;
+                                double offsetX = (cw - renderedW) / 2;
+                                double offsetY = (ch - renderedH) / 2;
+
+                                double boxW = d['width'].toDouble() * scale;
+                                double boxH = d['height'].toDouble() * scale;
+                                double left = offsetX + (d['x'].toDouble() * scale) - (boxW / 2);
+                                double top = offsetY + (d['y'].toDouble() * scale) - (boxH / 2);
+
+                                String className = d['class']?.toString() ?? 'Object';
+
+                                return Positioned(
+                                  left: left,
+                                  top: top,
+                                  width: boxW,
+                                  height: boxH,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: Colors.redAccent,
+                                        width: 2.5,
+                                      ),
+                                    ),
+                                    child: Align(
+                                      alignment: Alignment.topLeft,
+                                      child: Container(
+                                        color: Colors.redAccent,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 4,
+                                          vertical: 2,
+                                        ),
+                                        child: Text(
+                                          className,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                          ],
+                        );
+                      },
+                    )
+                  : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.image_outlined,
+                          size: 80,
+                          color: Colors.grey[500],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Belum ada foto',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pushNamed(
+                      context,
+                      AppRoutes.liveScan,
+                    );
+                  },
+                  icon: const Icon(Icons.camera_alt),
+                  label: const Text('Kamera'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.green,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    side: const BorderSide(color: Colors.green, width: 2),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => _pickImage(ImageSource.gallery),
+                  icon: const Icon(Icons.photo_library),
+                  label: const Text('Galeri'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.green,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    side: const BorderSide(color: Colors.green, width: 2),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: (_imageFile == null || _isUploading) ? null : _uploadAndDetect,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 2,
+            ),
+            child: _isUploading
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Text(
+                    'Deteksi Sekarang',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- KOMUNITAS TAB ---
+  Widget _buildKomunitasTab() {
+    return ListView(
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 100),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Row(
+            children: [
+              const CircleAvatar(
+                backgroundColor: Color(0xFF1B4F1E),
+                child: Text('BH', style: TextStyle(color: Colors.white)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Tanya harga pasar atau bagikan tips tani...',
+                  style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                ),
+              ),
+              IconButton(onPressed: () {}, icon: const Icon(Icons.photo_library_outlined, color: Colors.green)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildPostCard(
+          'Pak Joko',
+          'Petani Tomat',
+          'Alhamdulillah panen tomat kali ini melimpah. Hasil scan rata-rata masuk Grade A dengan harga pasaran Rp 18k - 20k. Ada yang mau borong?',
+          'assets/images/boxscanfruit.png',
+          '15 Suka',
+          '5 Komentar',
+        ),
+        _buildPostCard(
+          'Dr. Ir. Hermawan',
+          'Pakar Pertanian',
+          'Tips menjaga kualitas sayuran hijau agar tetap segar saat pengiriman: pastikan kelembaban terjaga dan gunakan wadah berventilasi.',
+          null,
+          '42 Suka',
+          '12 Komentar',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPostCard(String author, String role, String content, String? imgPath, String likes, String comments) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: Colors.green.shade50,
+                child: Text(author[0], style: const TextStyle(color: Color(0xFF1B4F1E), fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(author, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  Text(role, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(content, style: const TextStyle(fontSize: 13, height: 1.4)),
+          if (imgPath != null) ...[
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.asset(imgPath, width: double.infinity, height: 150, fit: BoxFit.cover),
+            ),
+          ],
+          const SizedBox(height: 12),
+          const Divider(),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.favorite_border, size: 18, color: Colors.grey),
+                  const SizedBox(width: 6),
+                  Text(likes, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                ],
+              ),
+              Row(
+                children: [
+                  const Icon(Icons.chat_bubble_outline, size: 18, color: Colors.grey),
+                  const SizedBox(width: 6),
+                  Text(comments, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- AKUN TAB ---
+  Widget _buildAkunTab() {
+    return ListView(
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 24, bottom: 100),
+      children: [
+        Center(
+          child: Column(
+            children: [
+              const CircleAvatar(
+                radius: 40,
+                backgroundColor: Color(0xFF1B4F1E),
+                child: Text('BH', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 12),
+              const Text('Budi Harsono', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              const SizedBox(height: 4),
+              Text('Petani Premium', style: TextStyle(color: Color(0xFF1B4F1E), fontWeight: FontWeight.w600, fontSize: 13)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildStatCard('Rp 4.2M', 'Total Omset'),
+            _buildStatCard('4.9/5', 'Rating Toko'),
+            _buildStatCard('42', 'Scanner Hit'),
+          ],
+        ),
+        const SizedBox(height: 24),
+        _buildMenuOption(Icons.shopping_bag_outlined, 'Dagangan Saya'),
+        _buildMenuOption(Icons.history, 'Riwayat Scan & Grade'),
+        _buildMenuOption(Icons.gavel, 'Lelang Diikuti'),
+        _buildMenuOption(Icons.settings_outlined, 'Pengaturan Akun'),
+        const Divider(),
+        _buildMenuOption(
+          Icons.logout,
+          'Keluar',
+          color: Colors.red,
+          onTap: () {
+            Navigator.pushReplacementNamed(context, AppRoutes.login);
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(String value, String label) {
+    return Container(
+      width: 100,
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Column(
+        children: [
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1B4F1E))),
+          const SizedBox(height: 4),
+          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey), textAlign: TextAlign.center),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMenuOption(IconData icon, String text, {Color? color, VoidCallback? onTap}) {
+    return ListTile(
+      onTap: onTap ?? () {},
+      leading: Icon(icon, color: color ?? const Color(0xFF1B4F1E)),
+      title: Text(
+        text,
+        style: TextStyle(
+          fontWeight: FontWeight.w500,
+          color: color ?? Colors.black87,
+        ),
+      ),
+      trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text(
-          'AGRISCAN',
-          style: TextStyle(
-            color: Color(0xFF1B4F1E), // Dark green color
+        title: Text(
+          _titles[_currentIndex],
+          style: const TextStyle(
+            color: Color(0xFF1B4F1E),
             fontWeight: FontWeight.bold,
             letterSpacing: 1,
           ),
@@ -104,224 +938,16 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: Colors.white,
         elevation: 4,
         surfaceTintColor: Colors.transparent,
-        shadowColor: Colors.black.withOpacity(0.30),
+        shadowColor: Colors.black.withOpacity(0.15),
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Colors.grey[400]!,
-                      width: 2,
-                      style: BorderStyle.solid,
-                    ),
-                  ),
-                  child: _imageFile != null
-                      ? LayoutBuilder(
-                          builder: (context, constraints) {
-                            return Stack(
-                              children: [
-                                // 1. Gambar Asli
-                                Positioned.fill(
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(14),
-                                    child: kIsWeb
-                                        ? Image.network(
-                                            _imageFile!.path,
-                                            fit: BoxFit.contain, // Harus contain agar tidak kepotong
-                                          )
-                                        : Image.file(
-                                            File(_imageFile!.path),
-                                            fit: BoxFit.contain,
-                                          ),
-                                  ),
-                                ),
-                                // 2. Bounding Boxes
-                                if (_detections != null)
-                                  ..._detections!.map((d) {
-                                    // Pastikan data x,y,width,height ada
-                                    if (d['x'] == null ||
-                                        d['y'] == null ||
-                                        d['width'] == null ||
-                                        d['height'] == null ||
-                                        d['image_width'] == null ||
-                                        d['image_height'] == null ||
-                                        d['image_width'] == 0) {
-                                      return const SizedBox(); // Jika data tidak lengkap, jangan gambar
-                                    }
-
-                                    double imgW = d['image_width'].toDouble();
-                                    double imgH = d['image_height'].toDouble();
-                                    double cw = constraints.maxWidth;
-                                    double ch = constraints.maxHeight;
-
-                                    // Hitung skala dan posisi persis (BoxFit.contain logic)
-                                    double scale = min(cw / imgW, ch / imgH);
-                                    double renderedW = imgW * scale;
-                                    double renderedH = imgH * scale;
-                                    double offsetX = (cw - renderedW) / 2;
-                                    double offsetY = (ch - renderedH) / 2;
-
-                                    // Koordinat kotak (x dan y dari Roboflow adalah titik TENGAH kotak)
-                                    double boxW = d['width'].toDouble() * scale;
-                                    double boxH =
-                                        d['height'].toDouble() * scale;
-                                    double left =
-                                        offsetX +
-                                        (d['x'].toDouble() * scale) -
-                                        (boxW / 2);
-                                    double top =
-                                        offsetY +
-                                        (d['y'].toDouble() * scale) -
-                                        (boxH / 2);
-
-                                    // Ambil nama kelas
-                                    String className =
-                                        d['class']?.toString() ?? 'Object';
-
-                                    return Positioned(
-                                      left: left,
-                                      top: top,
-                                      width: boxW,
-                                      height: boxH,
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          border: Border.all(
-                                            color: Colors.redAccent,
-                                            width: 2.5,
-                                          ),
-                                        ),
-                                        child: Align(
-                                          alignment: Alignment.topLeft,
-                                          child: Container(
-                                            color: Colors.redAccent,
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 4,
-                                              vertical: 2,
-                                            ),
-                                            child: Text(
-                                              className,
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  }).toList(),
-                              ],
-                            );
-                          },
-                        )
-                      : Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.image_outlined,
-                              size: 80,
-                              color: Colors.grey[500],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Belum ada foto',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
-                        ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const LiveScanScreen(),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.camera_alt),
-                      label: const Text('Kamera'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.green,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        side: const BorderSide(color: Colors.green, width: 2),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _pickImage(ImageSource.gallery),
-                      icon: const Icon(Icons.photo_library),
-                      label: const Text('Galeri'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.green,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        side: const BorderSide(color: Colors.green, width: 2),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: (_imageFile == null || _isUploading)
-                    ? null
-                    : _uploadAndDetect,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 2,
-                ),
-                child: _isUploading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Text(
-                        'Deteksi Sekarang',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-              ),
-            ],
-          ),
-        ),
+      body: _buildBody(),
+      bottomNavigationBar: CustomBottomNavBar(
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
       ),
     );
   }

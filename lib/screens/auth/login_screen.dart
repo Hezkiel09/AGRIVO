@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:agrivo/api_service.dart';
-import 'package:agrivo/screens/home/home_screen.dart';
-import 'package:agrivo/screens/auth/register_screen.dart';
+import '../../core/app_routes.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -34,9 +33,9 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Login berhasil!')),
         );
-        Navigator.pushReplacement(
+        Navigator.pushReplacementNamed(
           context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          AppRoutes.home,
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -148,11 +147,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   const Text('Belum punya akun?'),
                   TextButton(
                     onPressed: () {
-                      Navigator.push(
+                      Navigator.pushNamed(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => const RegisterScreen(),
-                        ),
+                        AppRoutes.register,
                       );
                     },
                     child: const Text(
