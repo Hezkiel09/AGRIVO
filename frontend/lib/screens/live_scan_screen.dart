@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:agrivo/api_service.dart';
-import 'package:agrivo/screens/result_screen.dart';
+import '../core/app_routes.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 
@@ -199,14 +199,13 @@ class _LiveScanScreenState extends State<LiveScanScreen> {
                 onTap: () {
                   if (_lastCapturedFile != null && _currentDetections != null) {
                     _timer?.cancel(); // Hentikan live scan
-                    Navigator.pushReplacement(
+                    Navigator.pushReplacementNamed(
                       context,
-                      MaterialPageRoute(
-                        builder: (context) => ResultScreen(
-                          imageFile: _lastCapturedFile!,
-                          detections: _currentDetections!,
-                        ),
-                      ),
+                      AppRoutes.result,
+                      arguments: {
+                        'imageFile': _lastCapturedFile!,
+                        'detections': _currentDetections!,
+                      },
                     );
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(

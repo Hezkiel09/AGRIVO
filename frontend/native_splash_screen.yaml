@@ -1,0 +1,10 @@
+flutter_native_splash:
+  android: true
+  ios: true
+  web: false
+  color: "#165D16"
+  image: assets/images/agrivo_logo.png
+
+  android_12:
+    color: "#165D16"
+    image: assets/images/agrivo_logo.png
