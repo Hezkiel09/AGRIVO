@@ -11,8 +11,10 @@ class User(Base):
     password = Column(String(255), nullable=False)
     role = Column(String(20), nullable=False) # 'petani' or 'umkm'
     
-    # Relationship with products
+    # Relationship with other tables
     products = relationship("Product", back_populates="owner")
+    komunitas = relationship("Komunitas", back_populates="owner")
+    berita = relationship("Berita", back_populates="author")
 
 
 class Product(Base):
@@ -29,3 +31,34 @@ class Product(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     
     owner = relationship("User", back_populates="products")
+
+
+class Komunitas(Base):
+    __tablename__ = "komunitas"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False)
+    category = Column(String(50), nullable=False)
+    privacy = Column(String(20), nullable=False) # 'Publik' or 'Private'
+    description = Column(Text, nullable=True)
+    image_path = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    
+    owner_id = Column(Integer, ForeignKey("users.id"))
+    owner = relationship("User", back_populates="komunitas")
+
+
+class Berita(Base):
+    __tablename__ = "berita"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(150), nullable=False)
+    category = Column(String(50), nullable=False)
+    content = Column(Text, nullable=False)
+    image_path = Column(String(255), nullable=True)
+    reference_source = Column(String(255), nullable=True)
+    reference_url = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    
+    author_id = Column(Integer, ForeignKey("users.id"))
+    author = relationship("User", back_populates="berita")

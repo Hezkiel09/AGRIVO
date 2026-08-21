@@ -17,6 +17,14 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(":app")
+    
+    if (project.name == "camera_android_camerax") {
+        afterEvaluate {
+            dependencies {
+                add("implementation", "androidx.concurrent:concurrent-futures:1.1.0")
+            }
+        }
+    }
 }
 
 tasks.register<Delete>("clean") {

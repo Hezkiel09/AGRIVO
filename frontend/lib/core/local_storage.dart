@@ -13,6 +13,18 @@ class LocalStorage {
     return prefs.getBool(_keyOnboardingCompleted) ?? false;
   }
 
+  static const String _keyToken = 'auth_token';
+
+  static Future<void> setToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyToken, token);
+  }
+
+  static Future<String?> getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyToken);
+  }
+
   static Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();

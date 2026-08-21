@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:agrivo/screens/live_scan_screen.dart';
 import 'package:agrivo/screens/result_screen.dart';
+import 'package:agrivo/screens/community_screen.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -105,6 +106,20 @@ class _HomeScreenState extends State<HomeScreen> {
         elevation: 4,
         surfaceTintColor: Colors.transparent,
         shadowColor: Colors.black.withOpacity(0.30),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.people_alt, color: Color(0xFF1B4F1E)),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const CommunityScreen(),
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: SafeArea(
         child: Padding(

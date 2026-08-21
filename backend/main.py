@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, File, UploadFile, Depends, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 import shutil
@@ -16,6 +17,10 @@ from database import engine
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+if not os.path.exists("temp_images"):
+    os.makedirs("temp_images")
+app.mount("/temp_images", StaticFiles(directory="temp_images"), name="temp_images")
 
 app.add_middleware(
     CORSMiddleware,
@@ -135,3 +140,83 @@ def create_product(
     db.refresh(new_product)
     
     return {"status": "success", "message": "Produk berhasil ditambahkan!", "product_id": new_product.id}
+
+@app.post("/api/komunitas")
+def create_komunitas(
+    name: str = Form(...),
+    category: str = Form(...),
+    privacy: str = Form(...),
+    description: str = Form(""),
+    image: UploadFile = File(None),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    image_path = None
+    if image:
+        temp_dir = "temp_images"
+        if not os.path.exists(temp_dir):
+            os.makedirs(temp_dir)
+        unique_filename = f"{int(time.time())}_komunitas_{image.filename}"
+        file_location = os.path.join(temp_dir, unique_filename)
+        with open(file_location, "wb") as buffer:
+            shutil.copyfileobj(image.file, buffer)
+        image_path = file_location
+
+    new_komunitas = models.Komunitas(
+        name=name,
+        category=category,
+        privacy=privacy,
+        description=description,
+        image_path=image_path,
+        owner_id=current_user.id
+    )
+    db.add(new_komunitas)
+    db.commit()
+    db.refresh(new_komunitas)
+    return {"status": "success", "message": "Komunitas berhasil dibuat!"}
+
+@app.get("/api/komunitas")
+def get_komunitas(db: Session = Depends(database.get_db)):
+    komunitas_list = db.query(models.Komunitas).order_by(models.Komunitas.created_at.desc()).all()
+    return {"status": "success", "data": komunitas_list}
+
+@app.post("/api/berita")
+def create_berita(
+    title: str = Form(...),
+    category: str = Form(...),
+    content: str = Form(...),
+    reference_source: str = Form(""),
+    reference_url: str = Form(""),
+    image: UploadFile = File(None),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    image_path = None
+    if image:
+        temp_dir = "temp_images"
+        if not os.path.exists(temp_dir):
+            os.makedirs(temp_dir)
+        unique_filename = f"{int(time.time())}_berita_{image.filename}"
+        file_location = os.path.join(temp_dir, unique_filename)
+        with open(file_location, "wb") as buffer:
+            shutil.copyfileobj(image.file, buffer)
+        image_path = file_location
+
+    new_berita = models.Berita(
+        title=title,
+        category=category,
+        content=content,
+        reference_source=reference_source,
+        reference_url=reference_url,
+        image_path=image_path,
+        author_id=current_user.id
+    )
+    db.add(new_berita)
+    db.commit()
+    db.refresh(new_berita)
+    return {"status": "success", "message": "Berita berhasil diajukan!"}
+
+@app.get("/api/berita")
+def get_berita(db: Session = Depends(database.get_db)):
+    berita_list = db.query(models.Berita).order_by(models.Berita.created_at.desc()).all()
+    return {"status": "success", "data": berita_list}
