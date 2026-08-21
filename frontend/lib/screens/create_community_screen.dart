@@ -1,7 +1,9 @@
 import 'package:agrivo/api_service.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
 import 'dart:io';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 class CreateCommunityScreen extends StatefulWidget {
@@ -15,7 +17,7 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
-  
+
   String? _selectedCategory;
   String _privacy = 'Publik';
   XFile? _imageFile;
@@ -26,12 +28,15 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
     'Perkebunan',
     'Peternakan',
     'UMKM',
-    'Teknologi Tani'
+    'Teknologi Tani',
   ];
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
     if (pickedFile != null) {
       setState(() => _imageFile = pickedFile);
     }
@@ -40,20 +45,32 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
   void _insertFormat(String startTag, String endTag) {
     final text = _descriptionController.text;
     final selection = _descriptionController.selection;
-    
+
     if (selection.isValid && selection.start >= 0 && selection.end >= 0) {
       final selectedText = text.substring(selection.start, selection.end);
-      final newText = text.replaceRange(selection.start, selection.end, '$startTag$selectedText$endTag');
-      
+      final newText = text.replaceRange(
+        selection.start,
+        selection.end,
+        '$startTag$selectedText$endTag',
+      );
+
       _descriptionController.value = TextEditingValue(
         text: newText,
-        selection: TextSelection.collapsed(offset: selection.start + startTag.length + selectedText.length + endTag.length),
+        selection: TextSelection.collapsed(
+          offset:
+              selection.start +
+              startTag.length +
+              selectedText.length +
+              endTag.length,
+        ),
       );
     } else {
       final newText = text + startTag + endTag;
       _descriptionController.value = TextEditingValue(
         text: newText,
-        selection: TextSelection.collapsed(offset: newText.length - endTag.length),
+        selection: TextSelection.collapsed(
+          offset: newText.length - endTag.length,
+        ),
       );
     }
   }
@@ -61,7 +78,9 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedCategory == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pilih kategori komunitas!')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pilih kategori komunitas!')),
+      );
       return;
     }
 
@@ -78,10 +97,18 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
     if (mounted) {
       setState(() => _isSubmitting = false);
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Komunitas berhasil dibuat!')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Komunitas berhasil dibuat!')),
+        );
         Navigator.pop(context);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gagal membuat komunitas. Pastikan Anda sudah login.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Gagal membuat komunitas. Pastikan Anda sudah login.',
+            ),
+          ),
+        );
       }
     }
   }
@@ -91,7 +118,13 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5FAEF),
       appBar: AppBar(
-        title: const Text('Komunitas', style: TextStyle(color: Color(0xFF1B4F1E), fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Komunitas',
+          style: TextStyle(
+            color: Color(0xFF1B4F1E),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Color(0xFF1B4F1E)),
@@ -111,10 +144,17 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                     radius: 50,
                     backgroundColor: const Color(0xFF4C5E48),
                     backgroundImage: _imageFile != null
-                        ? (kIsWeb ? NetworkImage(_imageFile!.path) : FileImage(File(_imageFile!.path))) as ImageProvider
+                        ? (kIsWeb
+                                  ? NetworkImage(_imageFile!.path)
+                                  : FileImage(File(_imageFile!.path)))
+                              as ImageProvider
                         : null,
                     child: _imageFile == null
-                        ? const Icon(Icons.camera_alt, size: 40, color: Colors.white70)
+                        ? const Icon(
+                            Icons.camera_alt,
+                            size: 40,
+                            color: Colors.white70,
+                          )
                         : null,
                   ),
                 ),
@@ -133,10 +173,14 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                     _buildLabel('Nama Komunitas *'),
                     TextFormField(
                       controller: _nameController,
-                      validator: (val) => val != null && val.length < 10 ? 'Minimal 10 karakter' : null,
+                      validator: (val) => val != null && val.length < 10
+                          ? 'Minimal 10 karakter'
+                          : null,
                       decoration: InputDecoration(
                         hintText: 'Masukan nama (minimal 10 karakter)',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -146,10 +190,18 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                       value: _selectedCategory,
                       decoration: InputDecoration(
                         hintText: 'Pilih Kategori Komunitas',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
-                      items: _categories.map((cat) => DropdownMenuItem(value: cat, child: Text(cat))).toList(),
-                      onChanged: (val) => setState(() => _selectedCategory = val),
+                      items: _categories
+                          .map(
+                            (cat) =>
+                                DropdownMenuItem(value: cat, child: Text(cat)),
+                          )
+                          .toList(),
+                      onChanged: (val) =>
+                          setState(() => _selectedCategory = val),
                     ),
                     const SizedBox(height: 20),
 
@@ -173,16 +225,22 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                         children: [
                           // Fake Toolbar
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
-                              border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+                              border: Border(
+                                bottom: BorderSide(color: Colors.grey.shade300),
+                              ),
                               color: Colors.grey.shade100,
                             ),
                             child: Row(
                               children: [
                                 IconButton(
                                   icon: const Icon(Icons.format_size),
-                                  onPressed: () => _insertFormat('<h2>', '</h2>'),
+                                  onPressed: () =>
+                                      _insertFormat('<h2>', '</h2>'),
                                   tooltip: 'Heading 2',
                                 ),
                                 IconButton(
@@ -195,7 +253,11 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                                   onPressed: () => _insertFormat('<i>', '</i>'),
                                   tooltip: 'Italic',
                                 ),
-                                Container(width: 1, height: 20, color: Colors.grey),
+                                Container(
+                                  width: 1,
+                                  height: 20,
+                                  color: Colors.grey,
+                                ),
                               ],
                             ),
                           ),
@@ -221,12 +283,21 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0F681A),
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-                child: _isSubmitting 
+                child: _isSubmitting
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Buat Komunitas', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-              )
+                    : const Text(
+                        'Buat Komunitas',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+              ),
             ],
           ),
         ),
@@ -239,7 +310,11 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Text(
         text,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF4C5E48)),
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF4C5E48),
+        ),
       ),
     );
   }
@@ -251,7 +326,9 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
         onPressed: () => setState(() => _privacy = title),
         style: OutlinedButton.styleFrom(
           backgroundColor: isSelected ? const Color(0xFF0F681A) : Colors.white,
-          side: BorderSide(color: isSelected ? const Color(0xFF0F681A) : Colors.grey),
+          side: BorderSide(
+            color: isSelected ? const Color(0xFF0F681A) : Colors.grey,
+          ),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         child: Text(
