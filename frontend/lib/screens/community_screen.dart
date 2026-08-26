@@ -1,4 +1,4 @@
-import 'package:agrivo/api_service.dart';
+import 'package:agrivo/services/api_service.dart';
 import 'package:agrivo/screens/create_article_screen.dart';
 import 'package:agrivo/screens/create_community_screen.dart';
 import 'package:flutter/material.dart';

@@ -285,4 +285,234 @@ class ApiService {
       return false;
     }
   }
+
+  // ==========================================
+  // FITUR 5: PRODUCT API (MARKETPLACE & DETAIL)
+  // ==========================================
+  static Future<List<dynamic>> getProducts({
+    String? category,
+    String? grade,
+    String? search,
+  }) async {
+    Map<String, String> queryParams = {};
+    if (category != null && category.isNotEmpty && category.toLowerCase() != 'semua') {
+      queryParams['category'] = category;
+    }
+    if (grade != null && grade.isNotEmpty) {
+      queryParams['grade'] = grade;
+    }
+    if (search != null && search.isNotEmpty) {
+      queryParams['search'] = search;
+    }
+
+    final uri = Uri.parse('$baseUrl/api/products').replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+    try {
+      final response = await http.get(uri).timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['data'] ?? [];
+      }
+    } catch (e) {
+      print("Error Fetch Products: $e");
+    }
+    return [];
+  }
+
+  static Future<Map<String, dynamic>?> getProductDetail(int productId) async {
+    final url = Uri.parse('$baseUrl/api/products/$productId');
+    try {
+      final response = await http.get(url).timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['data'];
+      }
+    } catch (e) {
+      print("Error Fetch Product Detail: $e");
+    }
+    return null;
+  }
+
+  static Future<List<dynamic>> getMyProducts() async {
+    final url = Uri.parse('$baseUrl/api/my-products');
+    final token = await LocalStorage.getToken();
+    if (token == null) return [];
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      ).timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['data'] ?? [];
+      }
+    } catch (e) {
+      print("Error Fetch My Products: $e");
+    }
+    return [];
+  }
+
+  static Future<bool> createProduct({
+    required String name,
+    String grade = 'Grade A',
+    String category = 'Sayuran',
+    String description = '',
+    required String price,
+    String unit = 'kg',
+    int stock = 10,
+    String? imagePath,
+    XFile? imageFile,
+  }) async {
+    final url = Uri.parse('$baseUrl/api/products');
+    final token = await LocalStorage.getToken();
+    if (token == null) return false;
+
+    try {
+      var request = http.MultipartRequest('POST', url)
+        ..headers['Authorization'] = 'Bearer $token'
+        ..fields['name'] = name
+        ..fields['grade'] = grade
+        ..fields['category'] = category
+        ..fields['description'] = description
+        ..fields['price'] = price
+        ..fields['unit'] = unit
+        ..fields['stock'] = stock.toString();
+
+      if (imagePath != null && imagePath.isNotEmpty) {
+        request.fields['image_path'] = imagePath;
+      }
+
+      if (imageFile != null) {
+        if (kIsWeb) {
+          request.files.add(http.MultipartFile.fromBytes(
+            'image',
+            await imageFile.readAsBytes(),
+            filename: imageFile.name,
+          ));
+        } else {
+          request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
+        }
+      }
+
+      var response = await request.send().timeout(const Duration(seconds: 15));
+      return response.statusCode == 200;
+    } catch (e) {
+      print("Error Create Product: $e");
+      return false;
+    }
+  }
+
+  static Future<bool> deleteProduct(int productId) async {
+    final url = Uri.parse('$baseUrl/api/products/$productId');
+    final token = await LocalStorage.getToken();
+    if (token == null) return false;
+
+    try {
+      final response = await http.delete(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      ).timeout(const Duration(seconds: 10));
+      return response.statusCode == 200;
+    } catch (e) {
+      print("Error Delete Product: $e");
+      return false;
+    }
+  }
+
+  // ==========================================
+  // FITUR 6: FARMER DASHBOARD & ORDER API
+  // ==========================================
+  static Future<Map<String, dynamic>?> getFarmerDashboard() async {
+    final url = Uri.parse('$baseUrl/api/petani-dashboard');
+    final token = await LocalStorage.getToken();
+    if (token == null) return null;
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['data'];
+      }
+    } catch (e) {
+      print("Error Fetch Farmer Dashboard: $e");
+    }
+    return null;
+  }
+
+  static Future<bool> createOrder({
+    required int productId,
+    required int quantity,
+    required String totalPrice,
+  }) async {
+    final url = Uri.parse('$baseUrl/api/orders');
+    final token = await LocalStorage.getToken();
+    if (token == null) return false;
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'product_id': productId,
+          'quantity': quantity,
+          'total_price': totalPrice,
+        }),
+      ).timeout(const Duration(seconds: 10));
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print("Error Create Order: $e");
+      return false;
+    }
+  }
+
+  static Future<List<dynamic>> getOrders() async {
+    final url = Uri.parse('$baseUrl/api/orders');
+    final token = await LocalStorage.getToken();
+    if (token == null) return [];
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['data'] ?? [];
+      }
+    } catch (e) {
+      print("Error Fetch Orders: $e");
+    }
+    return [];
+  }
+
+  static Future<bool> updateOrderStatus(int orderId, String status) async {
+    final url = Uri.parse('$baseUrl/api/orders/$orderId/status');
+    final token = await LocalStorage.getToken();
+    if (token == null) return false;
+
+    try {
+      final response = await http.put(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'status': status}),
+      ).timeout(const Duration(seconds: 10));
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print("Error Update Order Status: $e");
+      return false;
+    }
+  }
 }

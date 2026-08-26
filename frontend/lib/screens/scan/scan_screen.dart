@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../api_service.dart';
+import 'package:agrivo/services/api_service.dart';
 import '../../core/app_routes.dart';
 
 class ScanScreen extends StatefulWidget {

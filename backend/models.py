@@ -15,6 +15,7 @@ class User(Base):
     products = relationship("Product", back_populates="owner")
     komunitas = relationship("Komunitas", back_populates="owner")
     berita = relationship("Berita", back_populates="author")
+    orders = relationship("Order", back_populates="buyer", foreign_keys="[Order.buyer_id]")
 
 
 class Product(Base):
@@ -24,14 +25,31 @@ class Product(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     
     name = Column(String(100), nullable=False)
-    grade = Column(String(50))
-    description = Column(Text)
-    price = Column(String(100))
-    image_path = Column(String(255))
+    grade = Column(String(50), nullable=True)
+    category = Column(String(50), default="Sayuran", nullable=True)
+    description = Column(Text, nullable=True)
+    price = Column(String(100), nullable=False)
+    unit = Column(String(20), default="kg", nullable=True)
+    stock = Column(Integer, default=10, nullable=True)
+    image_path = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     
     owner = relationship("User", back_populates="products")
+    orders = relationship("Order", back_populates="product")
 
+class Order(Base):
+    __tablename__ = "orders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"))
+    buyer_id = Column(Integer, ForeignKey("users.id"))
+    quantity = Column(Integer, nullable=False)
+    total_price = Column(String(100), nullable=False)
+    status = Column(String(20), default="pending", nullable=False) # 'pending', 'diproses', 'dikirim', 'selesai', 'dibatalkan'
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    
+    product = relationship("Product", back_populates="orders")
+    buyer = relationship("User", back_populates="orders", foreign_keys=[buyer_id])
 
 class Komunitas(Base):
     __tablename__ = "komunitas"

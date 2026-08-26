@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:agrivo/services/api_service.dart';
 
 import '../../widgets/custom_bottom_nav_bar.dart';
 import '../community_screen.dart';
@@ -15,6 +16,35 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
+  Map<String, dynamic>? _dashboardData;
+  bool _isLoading = true;
+  String _selectedPeriod = '1B';
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDashboard();
+  }
+
+  Future<void> _fetchDashboard() async {
+    setState(() => _isLoading = true);
+    final data = await ApiService.getFarmerDashboard();
+    if (mounted) {
+      setState(() {
+        _dashboardData = data;
+        _isLoading = false;
+      });
+    }
+  }
+
+  String _getDisplayName() {
+    final rawUsername = _dashboardData?['username']?.toString() ?? 'Petani';
+    if (rawUsername.contains('@')) {
+      final namePart = rawUsername.split('@')[0];
+      return namePart[0].toUpperCase() + namePart.substring(1);
+    }
+    return rawUsername[0].toUpperCase() + rawUsername.substring(1);
+  }
 
   Widget _buildBody() {
     switch (_currentIndex) {
@@ -35,20 +65,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // --- BERANDA VIEW ---
   Widget _buildBerandaTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 20.0, bottom: 20.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // Header Greetings
-          const Text(
-            'Hai Adit!',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1B4F1E),
+    return RefreshIndicator(
+      onRefresh: _fetchDashboard,
+      color: const Color(0xFF1B4F1E),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 20.0, bottom: 20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Header Greetings
+            Text(
+              'Hai ${_getDisplayName()}!',
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1B4F1E),
+              ),
             ),
-          ),
           const SizedBox(height: 6),
           const Text(
             'Optimalkan hasil panen dengan\nkecerdasan komputer vision.',
@@ -100,9 +134,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Rp. 500,450',
-                  style: TextStyle(
+                Text(
+                  _isLoading ? 'Memuat...' : (_dashboardData?['formatted_sales'] ?? 'Rp. 0'),
+                  style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF1B4F1E),
@@ -114,7 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const Icon(Icons.trending_up, color: Colors.green, size: 14),
                     const SizedBox(width: 4),
                     Text(
-                      '+12% vs bulan lalu',
+                      '${_dashboardData?['sales_growth'] ?? "+0%"} vs bulan lalu',
                       style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                     ),
                   ],
@@ -122,11 +156,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 14),
                 Row(
                   children: [
-                    _buildTimeFilterPill('1B', isSelected: true),
+                    _buildTimeFilterPill('1B'),
                     const SizedBox(width: 8),
-                    _buildTimeFilterPill('3B', isSelected: false),
+                    _buildTimeFilterPill('3B'),
                     const SizedBox(width: 8),
-                    _buildTimeFilterPill('1T', isSelected: false),
+                    _buildTimeFilterPill('1T'),
                   ],
                 ),
               ],
@@ -173,9 +207,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  '3',
-                  style: TextStyle(
+                Text(
+                  _isLoading ? '...' : '${_dashboardData?['active_orders'] ?? 0}',
+                  style: const TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF1B4F1E),
@@ -252,22 +286,31 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
-  Widget _buildTimeFilterPill(String label, {required bool isSelected}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-      decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFF1B4F1E) : const Color(0xFFEFEFEF),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-          color: isSelected ? Colors.white : Colors.black87,
+  Widget _buildTimeFilterPill(String label) {
+    final isSelected = _selectedPeriod == label;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedPeriod = label;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF1B4F1E) : const Color(0xFFEFEFEF),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            color: isSelected ? Colors.white : Colors.black87,
+          ),
         ),
       ),
     );
