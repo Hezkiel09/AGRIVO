@@ -220,3 +220,15 @@ def create_berita(
 def get_berita(db: Session = Depends(database.get_db)):
     berita_list = db.query(models.Berita).order_by(models.Berita.created_at.desc()).all()
     return {"status": "success", "data": berita_list}
+
+@app.get("/api/v1/harga-pasar")
+def get_harga_pasar(db: Session = Depends(database.get_db)):
+    data = db.query(models.HargaPasar).all()
+    response = []
+    for item in data:
+        response.append({
+            "tanggal_update": item.tanggal_update.isoformat() if item.tanggal_update else None,
+            "komoditas": item.komoditas,
+            "harga_rata_rata": item.harga
+        })
+    return {"status": "success", "data": response}

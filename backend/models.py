@@ -62,3 +62,11 @@ class Berita(Base):
     
     author_id = Column(Integer, ForeignKey("users.id"))
     author = relationship("User", back_populates="berita")
+
+class HargaPasar(Base):
+    __tablename__ = "harga_pasar"
+
+    id = Column(Integer, primary_key=True, index=True)
+    komoditas = Column(String(100), nullable=False)
+    harga = Column(Integer, nullable=False)
+    tanggal_update = Column(DateTime, default=datetime.datetime.utcnow)
