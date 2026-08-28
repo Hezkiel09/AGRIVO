@@ -9,7 +9,7 @@
 
 ---
 
-## 📌 Prasyarat System
+## 📌 System Requirement
 
 Sebelum menjalankan proyek ini di lingkungan lokal, pastikan perangkat Anda telah terinstal software berikut:
 
