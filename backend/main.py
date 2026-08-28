@@ -207,6 +207,7 @@ async def detect_vegetable(file: UploadFile = File(...)):
 @app.post("/api/products", dependencies=[Depends(auth.require_role(["petani"]))])
 def create_product(
     name: str = Form(...),
+    slug: str = Form(...),
     grade: Optional[str] = Form("Grade A"),
     category: Optional[str] = Form("Sayuran"),
     description: Optional[str] = Form(""),
@@ -229,12 +230,15 @@ def create_product(
             shutil.copyfileobj(image.file, buffer)
         final_image_path = file_location
 
+        final_image_path = file_location
+
     new_product = models.Product(
         user_id=current_user.id,
         name=name,
         grade=grade,
         category=category,
         description=description,
+        slug=slug,
         price=price,
         unit=unit,
         stock=stock,
@@ -394,12 +398,51 @@ def get_harga_pasar(db: Session = Depends(database.get_db)):
     data = db.query(models.HargaPasar).all()
     response = []
     for item in data:
+        # Hitung analitik berdasarkan slug komoditas
+        products = db.query(models.Product).filter(models.Product.slug == item.slug).all()
+        
+        total_volume = 0
+        rata_rata_internal = 0
+        
+        if products:
+            product_ids = [p.id for p in products]
+            
+            # Hitung tren volume penjualan dari tabel Order
+            orders = db.query(models.Order).filter(models.Order.product_id.in_(product_ids)).all()
+            total_volume = sum(o.quantity for o in orders)
+            
+            # Hitung tren harga internal (harga rata-rata petani di aplikasi)
+            harga_internal = []
+            for p in products:
+                # Membersihkan format harga, misal '5000' atau 'Rp 5000'
+                try:
+                    h = int(''.join(filter(str.isdigit, str(p.price))))
+                    harga_internal.append(h)
+                except ValueError:
+                    continue
+            
+            if harga_internal:
+                rata_rata_internal = sum(harga_internal) / len(harga_internal)
+
         response.append({
             "tanggal_update": item.tanggal_update.isoformat() if item.tanggal_update else None,
             "komoditas": item.komoditas,
-            "harga_rata_rata": item.harga
+            "slug": item.slug,
+            "harga_pasar": item.harga,
+            "tren_harga_petani": rata_rata_internal,
+            "tren_volume_penjualan": total_volume
         })
     return {"status": "success", "data": response}
+
+@app.get("/api/komoditas-slugs")
+def get_komoditas_slugs():
+    """Mengembalikan daftar slug komoditas yang tersedia dari file slugs.txt"""
+    try:
+        with open("slugs.txt", "r") as f:
+            slugs = [line.strip() for line in f.readlines() if line.strip()]
+        return {"status": "success", "data": slugs}
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal membaca file slug: {str(e)}"}
 
 # --- ROUTES: ORDERS ---
 @app.post("/api/orders")

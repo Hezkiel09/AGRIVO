@@ -28,6 +28,7 @@ class Product(Base):
     grade = Column(String(50), nullable=True)
     category = Column(String(50), default="Sayuran", nullable=True)
     description = Column(Text, nullable=True)
+    slug = Column(String(100), index=True, nullable=True)
     price = Column(String(100), nullable=False)
     unit = Column(String(20), default="kg", nullable=True)
     stock = Column(Integer, default=10, nullable=True)
@@ -86,5 +87,6 @@ class HargaPasar(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     komoditas = Column(String(100), nullable=False)
+    slug = Column(String(100), index=True, nullable=True)
     harga = Column(Integer, nullable=False)
     tanggal_update = Column(DateTime, default=datetime.datetime.utcnow)
