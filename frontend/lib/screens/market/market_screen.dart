@@ -1,10 +1,108 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
 
-class MarketScreen extends StatelessWidget {
+import 'package:flutter/material.dart';
+import 'package:agrivo/services/api_service.dart';
+
+class MarketScreen extends StatefulWidget {
   const MarketScreen({super.key});
 
   @override
+  State<MarketScreen> createState() => _MarketScreenState();
+}
+
+class _MarketScreenState extends State<MarketScreen> {
+  bool _isLoading = true;
+  String _selectedCategory = 'Semua';
+  final TextEditingController _searchController = TextEditingController();
+
+  List<dynamic> _liveBids = [];
+  List<dynamic> _directBuys = [];
+  List<dynamic> _allProducts = []; // Used for grid view
+
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchProducts();
+    // Update UI every minute to refresh the countdown
+    _timer = Timer.periodic(const Duration(minutes: 1), (timer) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchProducts() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    final products = await ApiService.getProducts(
+      category: _selectedCategory == 'Semua' ? null : _selectedCategory,
+      search: _searchController.text.trim(),
+    );
+
+    _liveBids = [];
+    _directBuys = [];
+    _allProducts = products;
+
+    for (var product in products) {
+      if (product['sales_mode'] == 'live_bid') {
+        _liveBids.add(product);
+      } else {
+        _directBuys.add(product);
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  String _formatTimeLeft(String? expiryTimeIso) {
+    if (expiryTimeIso == null) return "Tidak diketahui";
+    try {
+      DateTime expiry = DateTime.parse(expiryTimeIso);
+      Duration diff = expiry.difference(DateTime.now());
+      if (diff.isNegative) return "Kadaluarsa";
+      int hours = diff.inHours;
+      int minutes = diff.inMinutes.remainder(60);
+      return "${hours.toString().padLeft(2, '0')}j ${minutes.toString().padLeft(2, '0')}m";
+    } catch (e) {
+      return "Format salah";
+    }
+  }
+
+  bool _isExpired(String? expiryTimeIso) {
+    if (expiryTimeIso == null) return false;
+    try {
+      DateTime expiry = DateTime.parse(expiryTimeIso);
+      return expiry.isBefore(DateTime.now());
+    } catch (e) {
+      return false;
+    }
+  }
+
+  String _getFullImageUrl(String? imagePath) {
+    if (imagePath == null || imagePath.isEmpty) return "";
+    if (imagePath.startsWith("http")) return imagePath;
+    return "${ApiService.baseUrl}/$imagePath";
+  }
+
+  @override
   Widget build(BuildContext context) {
+    bool isSearchingOrFiltered =
+        _selectedCategory != 'Semua' ||
+        _searchController.text.trim().isNotEmpty;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -29,6 +127,9 @@ class MarketScreen extends StatelessWidget {
             child: Column(
               children: [
                 TextField(
+                  controller: _searchController,
+                  onSubmitted: (_) => _fetchProducts(),
+                  textInputAction: TextInputAction.search,
                   decoration: InputDecoration(
                     hintText: 'Cari hasil panen, lelang, sayuran...',
                     prefixIcon: const Icon(Icons.search),
@@ -46,10 +147,9 @@ class MarketScreen extends StatelessWidget {
                   child: ListView(
                     scrollDirection: Axis.horizontal,
                     children: [
-                      _buildCategoryChip('Semua', true),
-                      _buildCategoryChip('Sayuran', false),
-                      _buildCategoryChip('Buah-buahan', false),
-                      _buildCategoryChip('Lelang Aktif', false),
+                      _buildCategoryChip('Semua'),
+                      _buildCategoryChip('Sayuran'),
+                      _buildCategoryChip('Buah-buahan'),
                     ],
                   ),
                 ),
@@ -59,123 +159,34 @@ class MarketScreen extends StatelessWidget {
 
           // Main Listings
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.only(bottom: 20),
-              children: [
-                // Live Bid Section
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      Text(
-                        'Lelang Sedang Berlangsung 🔥',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1B4F1E),
-                        ),
-                      ),
-                      Text(
-                        'Lihat Semua',
-                        style: TextStyle(
-                          color: Colors.green,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 210,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.only(left: 16),
-                    children: [
-                      _buildLiveBidCard(
-                        'Apel Manalagi',
-                        'assets/images/apel1.png',
-                        'Grade A',
-                        'Rp 22.000/kg',
-                        '01j 42m',
-                      ),
-                      _buildLiveBidCard(
-                        'Tomat Beef',
-                        'assets/images/boxscanfruit.png',
-                        'Grade A',
-                        'Rp 14.500/kg',
-                        '45m',
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Direct Buy Section
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      Text(
-                        'Beli Langsung dari Kebun 🥬',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1B4F1E),
-                        ),
-                      ),
-                      Text(
-                        'Lihat Semua',
-                        style: TextStyle(
-                          color: Colors.green,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: 2,
-                  itemBuilder: (context, index) {
-                    if (index == 0) {
-                      return _buildDirectBuyCard(
-                        'Sawi Hijau Organik',
-                        'assets/images/boxscanfruit.png',
-                        'Rp 8.000 / ikat',
-                        'Toko Tani Makmur',
-                      );
-                    }
-                    return _buildDirectBuyCard(
-                      'Jeruk Sunkist Fresh',
-                      'assets/images/apel1.png',
-                      'Rp 25.000 / kg',
-                      'Petani Berkah Jaya',
-                    );
-                  },
-                ),
-              ],
-            ),
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(color: Colors.green),
+                  )
+                : isSearchingOrFiltered
+                ? _buildGridView()
+                : _buildCarouselView(),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCategoryChip(String text, bool isSelected) {
+  Widget _buildCategoryChip(String text) {
+    bool isSelected = _selectedCategory == text;
     return Container(
       margin: const EdgeInsets.only(right: 8),
       child: ChoiceChip(
         label: Text(text),
         selected: isSelected,
-        onSelected: (_) {},
+        onSelected: (selected) {
+          if (selected) {
+            setState(() {
+              _selectedCategory = text;
+            });
+            _fetchProducts();
+          }
+        },
         selectedColor: const Color(0xFF1B4F1E),
         backgroundColor: Colors.grey.shade100,
         labelStyle: TextStyle(
@@ -187,148 +198,319 @@ class MarketScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildLiveBidCard(
-    String name,
-    String imgPath,
-    String grade,
-    String bid,
-    String time,
-  ) {
-    return Container(
-      width: 170,
-      margin: const EdgeInsets.only(right: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+  Widget _buildGridView() {
+    if (_allProducts.isEmpty) {
+      return const Center(
+        child: Text("Belum ada produk di pencarian/kategori ini."),
+      );
+    }
+
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 0.75, // Adjust for card height
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
-              child: Image.asset(imgPath, width: double.infinity, fit: BoxFit.cover),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        name,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.green.shade50,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        grade,
-                        style: const TextStyle(
-                          color: Colors.green,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Bid Tertinggi: $bid',
-                  style: const TextStyle(
-                    color: Colors.orange,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    const Icon(Icons.access_time, size: 12, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Text(time, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+      itemCount: _allProducts.length,
+      itemBuilder: (context, index) {
+        return _buildProductCard(_allProducts[index]);
+      },
     );
   }
 
-  Widget _buildDirectBuyCard(
-    String name,
-    String imgPath,
-    String price,
-    String shopName,
-  ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Image.asset(imgPath, width: 80, height: 80, fit: BoxFit.cover),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                const SizedBox(height: 4),
+  Widget _buildCarouselView() {
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 20),
+      children: [
+        // Live Bid Section
+        if (_liveBids.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: const [
                 Text(
-                  price,
-                  style: const TextStyle(
-                    color: Color(0xFF1B4F1E),
+                  'Lelang Sedang Berlangsung 🔥',
+                  style: TextStyle(
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    fontSize: 13,
+                    color: Color(0xFF1B4F1E),
                   ),
                 ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    const Icon(Icons.store, size: 14, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Text(shopName, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                  ],
+                Text(
+                  'Lihat Semua',
+                  style: TextStyle(
+                    color: Colors.green,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
           ),
-          ElevatedButton(
-            onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1B4F1E),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              elevation: 0,
-            ),
-            child: const Text(
-              'Beli',
-              style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 250, // Fixed height for carousel cards
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.only(left: 16),
+              itemCount: _liveBids.length,
+              itemBuilder: (context, index) {
+                var product = _liveBids[index];
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: AspectRatio(
+                    aspectRatio: 0.75,
+                    child: _buildProductCard(product),
+                  ),
+                );
+              },
             ),
           ),
+          const SizedBox(height: 24),
         ],
+
+        // Direct Buy Section (Now also a carousel)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: const [
+              Text(
+                'Beli Langsung dari Kebun 🥬',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1B4F1E),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (_directBuys.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Text(
+              "Belum ada produk di bagian ini.",
+              textAlign: TextAlign.center,
+            ),
+          )
+        else
+          SizedBox(
+            height: 250,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.only(left: 16),
+              itemCount: _directBuys.length,
+              itemBuilder: (context, index) {
+                var product = _directBuys[index];
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: AspectRatio(
+                    aspectRatio: 0.75,
+                    child: _buildProductCard(product),
+                  ),
+                );
+              },
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildProductCard(dynamic product) {
+    String name = product['name'] ?? 'Tanpa Nama';
+    String imgUrl = _getFullImageUrl(product['image_path']);
+    String grade = product['grade'] ?? 'A';
+    String price = product['price']?.toString() ?? '0';
+    String shopName = product['seller_name'] ?? 'Petani Agrivo';
+    bool isLiveBid = product['sales_mode'] == 'live_bid';
+    String timeStr = isLiveBid ? _formatTimeLeft(product['expiry_time']) : '';
+    bool expired = isLiveBid && _isExpired(product['expiry_time']);
+
+    return Opacity(
+      opacity: expired ? 0.6 : 1.0,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image with AI Grade Overlay
+            Expanded(
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(15),
+                    ),
+                    child: imgUrl.isNotEmpty
+                        ? Image.network(
+                            imgUrl,
+                            width: double.infinity,
+                            height: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                Container(
+                                  color: Colors.grey.shade300,
+                                  child: const Icon(
+                                    Icons.image,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                          )
+                        : Container(
+                            color: Colors.grey.shade300,
+                            child: const Icon(Icons.image, color: Colors.grey),
+                          ),
+                  ),
+                  // AI Grade Overlay Badge
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1B4F1E).withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.verified,
+                            color: Colors.white,
+                            size: 12,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'AI $grade',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Expired or Live Bid Timer Badge
+                  if (isLiveBid)
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: expired
+                              ? Colors.red.withOpacity(0.9)
+                              : Colors.orange.withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.access_time,
+                              size: 10,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              timeStr,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+
+            // Text Content Area
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    shopName,
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: Colors.black87,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Rp $price',
+                          style: const TextStyle(
+                            color: Color(0xFF1B4F1E),
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      // Plus Button
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.add,
+                          size: 16,
+                          color: Color(0xFF1B4F1E),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

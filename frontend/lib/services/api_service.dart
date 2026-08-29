@@ -20,6 +20,9 @@ class ApiService {
     String email,
     String password,
     String role,
+    String fullName,
+    String? farmName,
+    String? location,
   ) async {
     final url = Uri.parse('$baseUrl/register');
     try {
@@ -30,6 +33,9 @@ class ApiService {
           'username': email,
           'password': password,
           'role': role,
+          'full_name': fullName,
+          'farm_name': farmName,
+          'location': location,
         }),
       );
 
@@ -57,6 +63,11 @@ class ApiService {
         final data = jsonDecode(response.body);
         print("Token diterima: ${data['token']}");
         await LocalStorage.setToken(data['token']);
+        
+        if (data['role'] != null) {
+          await LocalStorage.setRole(data['role']);
+        }
+        
         return true;
       }
       print("Login Gagal: ${response.body}");
@@ -354,12 +365,15 @@ class ApiService {
 
   static Future<bool> createProduct({
     required String name,
+    required String slug,
+    required String salesMode,
     String grade = 'Grade A',
     String category = 'Sayuran',
     String description = '',
     required String price,
     String unit = 'kg',
     int stock = 10,
+    int? expiryHours,
     String? imagePath,
     XFile? imageFile,
   }) async {
@@ -371,12 +385,18 @@ class ApiService {
       var request = http.MultipartRequest('POST', url)
         ..headers['Authorization'] = 'Bearer $token'
         ..fields['name'] = name
+        ..fields['slug'] = slug
+        ..fields['sales_mode'] = salesMode
         ..fields['grade'] = grade
         ..fields['category'] = category
         ..fields['description'] = description
         ..fields['price'] = price
         ..fields['unit'] = unit
         ..fields['stock'] = stock.toString();
+
+      if (expiryHours != null) {
+        request.fields['expiry_hours'] = expiryHours.toString();
+      }
 
       if (imagePath != null && imagePath.isNotEmpty) {
         request.fields['image_path'] = imagePath;
@@ -422,6 +442,35 @@ class ApiService {
   // ==========================================
   // FITUR 6: FARMER DASHBOARD & ORDER API
   // ==========================================
+  static Future<List<String>> getKomoditasSlugs() async {
+    final url = Uri.parse('$baseUrl/api/komoditas-slugs');
+    try {
+      final response = await http.get(url).timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        List<dynamic> listData = data['data'] ?? [];
+        return listData.map((e) => e.toString()).toList();
+      }
+    } catch (e) {
+      print("Error Fetch Slugs: $e");
+    }
+    return [];
+  }
+
+  static Future<Map<String, dynamic>?> getTrendHarga(String slug) async {
+    final url = Uri.parse('$baseUrl/api/v1/harga-pasar/$slug');
+    try {
+      final response = await http.get(url).timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['data'];
+      }
+    } catch (e) {
+      print("Error Fetch Trend Harga: $e");
+    }
+    return null;
+  }
+
   static Future<Map<String, dynamic>?> getFarmerDashboard() async {
     final url = Uri.parse('$baseUrl/api/petani-dashboard');
     final token = await LocalStorage.getToken();

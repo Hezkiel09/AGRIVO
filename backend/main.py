@@ -9,6 +9,7 @@ import os
 import requests
 import base64
 import time
+import datetime
 
 # DB Imports
 import models, database, auth
@@ -53,7 +54,9 @@ def format_product(product: models.Product):
         "unit": product.unit or "kg",
         "stock": product.stock if product.stock is not None else 10,
         "image_path": product.image_path,
-        "created_at": product.created_at.isoformat() if product.created_at else None,
+        "sales_mode": product.sales_mode,
+        "expiry_time": product.expiry_time.isoformat() + "Z" if product.expiry_time else None,
+        "created_at": product.created_at.isoformat() + "Z" if product.created_at else None,
         "seller_id": product.user_id,
         "seller_name": product.owner.username if product.owner else "Petani Agrivo",
     }
@@ -79,6 +82,9 @@ class UserRegister(BaseModel):
     username: str # Will store email
     password: str
     role: str # "Petani" or "UMKM"
+    full_name: str
+    farm_name: Optional[str] = None
+    location: Optional[str] = None
 
 class UserLogin(BaseModel):
     username: str
@@ -104,7 +110,14 @@ def register(user: UserRegister, db: Session = Depends(database.get_db)):
         raise HTTPException(status_code=400, detail="Username sudah dipakai")
     
     hashed_password = auth.get_password_hash(user.password)
-    new_user = models.User(username=user.username, password=hashed_password, role=role)
+    new_user = models.User(
+        username=user.username, 
+        password=hashed_password, 
+        role=role,
+        full_name=user.full_name,
+        farm_name=user.farm_name,
+        location=user.location
+    )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
@@ -122,7 +135,7 @@ def login(user: UserLogin, db: Session = Depends(database.get_db)):
 
 # --- ROUTES: API ---
 
-@app.get("/api/petani-dashboard", dependencies=[Depends(auth.require_role(["petani"]))])
+@app.get("/api/petani-dashboard", dependencies=[Depends(auth.require_role(["petani", "umkm"]))])
 def petani_dashboard(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user)
@@ -207,12 +220,15 @@ async def detect_vegetable(file: UploadFile = File(...)):
 @app.post("/api/products", dependencies=[Depends(auth.require_role(["petani"]))])
 def create_product(
     name: str = Form(...),
+    slug: str = Form(...),
+    sales_mode: str = Form("market"),
     grade: Optional[str] = Form("Grade A"),
     category: Optional[str] = Form("Sayuran"),
     description: Optional[str] = Form(""),
     price: str = Form(...),
     unit: Optional[str] = Form("kg"),
     stock: Optional[int] = Form(10),
+    expiry_hours: Optional[int] = Form(None),
     image_path: Optional[str] = Form(None),
     image: UploadFile = File(None),
     db: Session = Depends(database.get_db),
@@ -229,12 +245,22 @@ def create_product(
             shutil.copyfileobj(image.file, buffer)
         final_image_path = file_location
 
+        final_image_path = file_location
+
+    expiry_time = None
+    if sales_mode == "live_bid":
+        hours_to_add = expiry_hours if expiry_hours is not None else 6
+        expiry_time = datetime.datetime.utcnow() + datetime.timedelta(hours=hours_to_add)
+
     new_product = models.Product(
         user_id=current_user.id,
         name=name,
         grade=grade,
         category=category,
         description=description,
+        slug=slug,
+        sales_mode=sales_mode,
+        expiry_time=expiry_time,
         price=price,
         unit=unit,
         stock=stock,
@@ -387,6 +413,87 @@ def create_berita(
 def get_berita(db: Session = Depends(database.get_db)):
     berita_list = db.query(models.Berita).order_by(models.Berita.created_at.desc()).all()
     return {"status": "success", "data": berita_list}
+
+
+@app.get("/api/v1/harga-pasar")
+def get_harga_pasar(db: Session = Depends(database.get_db)):
+    data = db.query(models.HargaPasar).all()
+    response = []
+    for item in data:
+        # Hitung analitik berdasarkan slug komoditas
+        products = db.query(models.Product).filter(models.Product.slug == item.slug).all()
+        
+        total_volume = 0
+        rata_rata_internal = 0
+        
+        if products:
+            product_ids = [p.id for p in products]
+            
+            # Hitung tren volume penjualan dari tabel Order
+            orders = db.query(models.Order).filter(models.Order.product_id.in_(product_ids)).all()
+            total_volume = sum(o.quantity for o in orders)
+            
+            # Hitung tren harga internal (harga rata-rata petani di aplikasi)
+            harga_internal = []
+            for p in products:
+                # Membersihkan format harga, misal '5000' atau 'Rp 5000'
+                try:
+                    h = int(''.join(filter(str.isdigit, str(p.price))))
+                    harga_internal.append(h)
+                except ValueError:
+                    continue
+            
+            if harga_internal:
+                rata_rata_internal = sum(harga_internal) / len(harga_internal)
+
+        response.append({
+            "tanggal_update": item.tanggal_update.isoformat() if item.tanggal_update else None,
+            "komoditas": item.komoditas,
+            "slug": item.slug,
+            "harga_pasar": item.harga,
+            "tren_harga_petani": rata_rata_internal,
+            "tren_volume_penjualan": total_volume
+        })
+    return {"status": "success", "data": response}
+
+@app.get("/api/v1/harga-pasar/{slug}")
+def get_tren_harga(slug: str, db: Session = Depends(database.get_db)):
+    """Mengembalikan data tren harga historis (dummy) untuk grafik berdasarkan slug"""
+    # Mencari komoditas berdasarkan slug
+    harga_db = db.query(models.HargaPasar).filter(models.HargaPasar.slug == slug).first()
+    
+    # Generate data grafik (dummy trend)
+    base_price = harga_db.harga if harga_db else 15000
+    
+    # Buat titik harga untuk 7 hari terakhir sebagai simulasi grafik tren
+    trend_data = []
+    import random
+    for i in range(7):
+        target_date = datetime.datetime.now() - datetime.timedelta(days=6-i)
+        day_label = target_date.strftime("%d %b") # e.g. '28 Aug'
+        # Fluktuasi harga acak +/- 500 sampai 1500
+        fluctuation = random.choice([-1, 1]) * random.randint(5, 15) * 100
+        point_price = base_price + fluctuation
+        trend_data.append({"day": day_label, "price": point_price})
+
+    return {
+        "status": "success", 
+        "data": {
+            "slug": slug,
+            "current_price": base_price,
+            "trend": trend_data
+        }
+    }
+
+@app.get("/api/komoditas-slugs")
+def get_komoditas_slugs():
+    """Mengembalikan daftar slug komoditas yang tersedia dari file slugs.txt"""
+    try:
+        with open("slugs.txt", "r") as f:
+            slugs = [line.strip() for line in f.readlines() if line.strip()]
+        return {"status": "success", "data": slugs}
+    except Exception as e:
+        return {"status": "error", "message": f"Gagal membaca file slug: {str(e)}"}
 
 # --- ROUTES: ORDERS ---
 @app.post("/api/orders")

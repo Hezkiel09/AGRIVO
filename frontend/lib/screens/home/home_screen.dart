@@ -38,7 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   String _getDisplayName() {
-    final rawUsername = _dashboardData?['username']?.toString() ?? 'Petani';
+    final rawUsername = _dashboardData?['username']?.toString() ?? 'User';
     if (rawUsername.contains('@')) {
       final namePart = rawUsername.split('@')[0];
       return namePart[0].toUpperCase() + namePart.substring(1);

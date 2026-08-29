@@ -25,6 +25,18 @@ class LocalStorage {
     return prefs.getString(_keyToken);
   }
 
+  static const String _keyRole = 'user_role';
+
+  static Future<void> setRole(String role) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyRole, role);
+  }
+
+  static Future<String?> getRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyRole);
+  }
+
   static Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
