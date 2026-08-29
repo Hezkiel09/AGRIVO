@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../core/app_routes.dart';
 import '../../widgets/custom_back_button.dart';
 
@@ -55,7 +56,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   void _navigateToHome() {
-    Navigator.of(context).pushReplacementNamed(AppRoutes.home);
+    Navigator.of(context).pushReplacementNamed(AppRoutes.login);
   }
 
   @override
@@ -73,7 +74,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           children: [
             // Top App Bar for Back Button and Skip Button
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24.0,
+                vertical: 12.0,
+              ),
               child: SizedBox(
                 height: 48,
                 child: Row(
@@ -209,10 +213,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   children: [
                     // Base Image
                     Positioned.fill(
-                      child: Image.asset(
-                        pageData.imagePath,
-                        fit: BoxFit.cover,
-                      ),
+                      child: Image.asset(pageData.imagePath, fit: BoxFit.cover),
                     ),
 
                     // Custom Overlay Badges mimicking the screenshots
@@ -222,7 +223,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         top: 16,
                         right: 16,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.9),
                             borderRadius: BorderRadius.circular(12),
@@ -231,7 +235,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                 color: Colors.black.withOpacity(0.05),
                                 blurRadius: 4,
                                 offset: const Offset(0, 2),
-                              )
+                              ),
                             ],
                           ),
                           child: Row(
@@ -270,7 +274,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                 color: Colors.black.withOpacity(0.05),
                                 blurRadius: 4,
                                 offset: const Offset(0, 2),
-                              )
+                              ),
                             ],
                           ),
                           child: Column(
@@ -318,7 +322,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         left: 16,
                         right: 16,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.9),
                             borderRadius: BorderRadius.circular(16),
@@ -327,7 +334,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                 color: Colors.black.withOpacity(0.05),
                                 blurRadius: 4,
                                 offset: const Offset(0, 2),
-                              )
+                              ),
                             ],
                           ),
                           child: Row(
@@ -384,7 +391,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         left: 16,
                         right: 16,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.9),
                             borderRadius: BorderRadius.circular(16),
@@ -393,7 +403,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                 color: Colors.black.withOpacity(0.05),
                                 blurRadius: 4,
                                 offset: const Offset(0, 2),
-                              )
+                              ),
                             ],
                           ),
                           child: Row(

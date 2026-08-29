@@ -10,6 +10,9 @@ class User(Base):
     username = Column(String(50), unique=True, index=True, nullable=False)
     password = Column(String(255), nullable=False)
     role = Column(String(20), nullable=False) # 'petani' or 'umkm'
+    full_name = Column(String(255), nullable=True)
+    farm_name = Column(String(255), nullable=True)
+    location = Column(String(255), nullable=True)
     
     # Relationship with other tables
     products = relationship("Product", back_populates="owner")
@@ -29,6 +32,8 @@ class Product(Base):
     category = Column(String(50), default="Sayuran", nullable=True)
     description = Column(Text, nullable=True)
     slug = Column(String(100), index=True, nullable=True)
+    sales_mode = Column(String(20), default="market") # 'market' atau 'live_bid'
+    expiry_time = Column(DateTime, nullable=True)
     price = Column(String(100), nullable=False)
     unit = Column(String(20), default="kg", nullable=True)
     stock = Column(Integer, default=10, nullable=True)
