@@ -5,6 +5,8 @@ backend/__pycache__/
 *.pyc
 backend/temp_images/*
 !backend/temp_images/.gitkeep
+backend/.env
+backend/.venv
 
 # Flutter / Dart
 .dart_tool/

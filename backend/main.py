@@ -18,7 +18,22 @@ from database import engine
 # Create tables
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI()
+from contextlib import asynccontextmanager
+from apscheduler.schedulers.background import BackgroundScheduler
+import trend_agent
+
+scheduler = BackgroundScheduler()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("Starting background scheduler for AI Trend Agent...")
+    scheduler.add_job(trend_agent.generate_trend_article, 'cron', hour=0, minute=0, id="trend_article_job")
+    scheduler.start()
+    yield
+    print("Shutting down background scheduler...")
+    scheduler.shutdown()
+
+app = FastAPI(lifespan=lifespan)
 
 if not os.path.exists("temp_images"):
     os.makedirs("temp_images")
@@ -569,3 +584,18 @@ def update_order_status(
         "data": format_order(order)
     }
 
+# --- ADMIN ROUTES (MANUAL TRIGGER) ---
+@app.post("/api/admin/generate-trend-article")
+def manual_trigger_trend_article():
+    """Manual trigger to run the Gemini AI trend agent immediately."""
+    import threading
+    import trend_agent
+    
+    def run_agent():
+        trend_agent.generate_trend_article()
+        
+    # Run in background thread so API responds immediately
+    thread = threading.Thread(target=run_agent)
+    thread.start()
+    
+    return {"status": "success", "message": "Trend article generation triggered in background."}
