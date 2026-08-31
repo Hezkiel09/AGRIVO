@@ -4,13 +4,13 @@ import 'package:agrivo/services/api_service.dart';
 class ArticleDetailScreen extends StatelessWidget {
   final dynamic article;
 
-  const ArticleDetailScreen({Key? key, required this.article}) : super(key: key);
+  const ArticleDetailScreen({Key? key, required this.article})
+    : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     String title = article['title'] ?? 'Tanpa Judul';
     String content = article['content'] ?? 'Tidak ada deskripsi.';
-    String imagePath = article['image_path']?.toString() ?? '';
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -36,13 +36,14 @@ class ArticleDetailScreen extends StatelessWidget {
           // Gambar Artikel
           Expanded(
             flex: 2,
-            child: imagePath.isNotEmpty
-                ? Image.network(
-                    '${ApiService.baseUrl}/$imagePath',
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _buildPlaceholderImage(),
-                  )
-                : _buildPlaceholderImage(),
+            child: Container(
+              color: const Color(0xFFF1F8EE),
+              padding: const EdgeInsets.all(32),
+              child: Image.asset(
+                'assets/icon/agrivo_logo.png',
+                fit: BoxFit.contain,
+              ),
+            ),
           ),
 
           // Konten Detail
@@ -70,7 +71,7 @@ class ArticleDetailScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    
+
                     // Card Judul
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -119,7 +120,7 @@ class ArticleDetailScreen extends StatelessWidget {
                     ),
 
                     const SizedBox(height: 32),
-                    
+
                     const Text(
                       'Rincian:',
                       style: TextStyle(
@@ -129,7 +130,7 @@ class ArticleDetailScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    
+
                     // Card Rincian
                     Container(
                       width: double.infinity,
@@ -161,19 +162,6 @@ class ArticleDetailScreen extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildPlaceholderImage() {
-    return Container(
-      color: Colors.grey[200],
-      child: const Center(
-        child: Icon(
-          Icons.image,
-          size: 80,
-          color: Colors.grey,
-        ),
       ),
     );
   }
