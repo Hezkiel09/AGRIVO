@@ -15,8 +15,7 @@ import datetime
 import models, database, auth
 from database import engine
 
-# Create tables
-models.Base.metadata.create_all(bind=engine)
+# Tables will be created in lifespan
 
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -26,12 +25,16 @@ scheduler = BackgroundScheduler()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("Starting background scheduler for AI Trend Agent...")
-    scheduler.add_job(trend_agent.generate_trend_article, 'cron', hour=0, minute=0, id="trend_article_job")
-    scheduler.start()
+    if not os.environ.get("TESTING"):
+        # Create tables
+        models.Base.metadata.create_all(bind=engine)
+        print("Starting background scheduler for AI Trend Agent...")
+        scheduler.add_job(trend_agent.generate_trend_article, 'cron', hour=0, minute=0, id="trend_article_job")
+        scheduler.start()
     yield
-    print("Shutting down background scheduler...")
-    scheduler.shutdown()
+    if not os.environ.get("TESTING"):
+        print("Shutting down background scheduler...")
+        scheduler.shutdown()
 
 app = FastAPI(lifespan=lifespan)
 

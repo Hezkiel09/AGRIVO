@@ -1,6 +1,7 @@
 import 'package:agrivo/services/api_service.dart';
 import 'package:agrivo/screens/create_article_screen.dart';
 import 'package:agrivo/screens/create_community_screen.dart';
+import 'package:agrivo/screens/article_detail_screen.dart';
 import 'package:flutter/material.dart';
 
 class CommunityScreen extends StatefulWidget {
@@ -86,28 +87,6 @@ class _CommunityScreenState extends State<CommunityScreen> {
                             color: Color(0xFF1B4F1E),
                           ),
                         ),
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const CreateArticleScreen(),
-                              ),
-                            ).then((_) => _fetchData());
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF1B4F1E),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: const Text(
-                            'Buat Artikel Baru',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                        ),
                       ],
                     ),
                     const SizedBox(height: 12),
@@ -185,47 +164,56 @@ class _CommunityScreenState extends State<CommunityScreen> {
   }
 
   Widget _buildBeritaCard(dynamic item) {
-    return Container(
-      width: 200,
-      margin: const EdgeInsets.only(right: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ArticleDetailScreen(article: item),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            child:
-                item['image_path'] != null &&
-                    item['image_path'].toString().isNotEmpty
-                ? Image.network(
-                    '${ApiService.baseUrl}/${item['image_path']}', // Asumsi backend public URL
-                    height: 120,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _buildPlaceholderImage(),
-                  )
-                : _buildPlaceholderImage(),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Text(
-              item['title'] ?? 'Tanpa Judul',
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12, color: Colors.black87),
+        );
+      },
+      child: Container(
+        width: 200,
+        margin: const EdgeInsets.only(right: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
-          ),
-        ],
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              child: Container(
+                color: const Color(0xFFF1F8EE),
+                height: 120,
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                child: Image.asset(
+                  'assets/icon/agrivo_logo.png',
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Text(
+                item['title'] ?? 'Tanpa Judul',
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12, color: Colors.black87),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

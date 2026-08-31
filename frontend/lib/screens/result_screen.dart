@@ -40,6 +40,18 @@ class ResultScreen extends StatelessWidget {
     return majorityGrade;
   }
 
+  String _getGradeDescription(String grade) {
+    String lowerGrade = grade.toLowerCase();
+    if (lowerGrade.contains("grade a")) {
+      return "• Fisik: Bentuk sempurna, mulus, dan tidak ada cacat atau memar sama sekali.\n• Warna: Seragam, cerah, dan menunjukkan tingkat kematangan yang optimal.\n• Ukuran: Besar dan seragam dalam satu kemasan.\n• Tekstur: Sangat renyah, padat, dan segar (kadar air maksimal).\n• Pasar: Supermarket kelas atas, hotel berbintang, restoran mewah, dan komoditas ekspor.";
+    } else if (lowerGrade.contains("grade b")) {
+      return "• Fisik: Ada sedikit cacat fisik minor pada kulit (seperti goresan kecil atau sedikit bercak) tetapi tidak merusak daging.\n• Warna: Cukup seragam, mungkin sedikit kurang cerah dibanding Grade A.\n• Ukuran: Sedang, variasi ukuran dalam satu wadah sedikit terlihat.\n• Tekstur: Tetap bagus, segar, dan layak konsumsi langsung.\n• Pasar: Supermarket lokal, pasar modern, catering, dan konsumsi rumah tangga harian.";
+    } else if (lowerGrade.contains("grade c")) {
+      return "• Fisik: Bentuk tidak beraturan (bengkok, asimetris) dan memiliki cacat visual yang jelas.\n• Warna: Kurang merata atau terlalu matang.\n• Ukuran: Cenderung kecil atau sangat beragam (tidak disortir berdasarkan ukuran).\n• Tekstur: Masih aman dikonsumsi, namun estetika visualnya rendah.\n• Pasar: Bahan baku industri olahan (selai, saus, jus, keripik) atau dijual murah di pasar tradisional.";
+    }
+    return "Deskripsi untuk grade ini belum tersedia.";
+  }
+
   @override
   Widget build(BuildContext context) {
     String majorityGrade = _calculateMajorityGrade();
@@ -165,26 +177,6 @@ class ResultScreen extends StatelessWidget {
                       ),
                     ),
 
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          size: 16,
-                          color: Colors.green[700],
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'informasi grade',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.green[700],
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-
                     const SizedBox(height: 24),
                     const Text(
                       'Keterangan :',
@@ -195,31 +187,12 @@ class ResultScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'Torem ipsum dolor sit amet, consectetur adipiscing elit. Nunc vulputate libero et velit interdum, ac aliquet odio mattis. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Curabitur tempus urna at turpis condimentum lobortis.',
-                      style: TextStyle(
+                    Text(
+                      _getGradeDescription(majorityGrade),
+                      style: const TextStyle(
                         fontSize: 13,
                         color: Colors.black87,
                         height: 1.5,
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-                    const Text(
-                      'Harga Pasaran :',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'RP 20.000 - 25.000/kg',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
                       ),
                     ),
 
@@ -232,7 +205,8 @@ class ResultScreen extends StatelessWidget {
                             context: context,
                             isScrollControlled: true,
                             backgroundColor: Colors.transparent,
-                            builder: (context) => _buildSalesModeSheet(context, majorityGrade),
+                            builder: (context) =>
+                                _buildSalesModeSheet(context, majorityGrade),
                           );
                         },
                         style: ElevatedButton.styleFrom(
@@ -286,24 +260,16 @@ class ResultScreen extends StatelessWidget {
           ),
           const Text(
             'Hasil Scan Selesai! Pilih Cara Jualanmu',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
-          const Icon(
-            Icons.shopping_cart,
-            size: 80,
-            color: Colors.black87,
-          ),
+          const Icon(Icons.shopping_cart, size: 80, color: Colors.black87),
           const SizedBox(height: 30),
           _buildModeOption(
             context,
             title: 'Live Bid ⚡',
-            description:
-                'Laku cepat dalam beberapa jam! Cocok untuk panen segar hari ini agar tidak keburu membusuk.',
+            description: 'Laku cepat dalam beberapa jam! Cocok untuk panen segar hari ini agar tidak keburu membusuk.',
             salesMode: 'live_bid',
             majorityGrade: majorityGrade,
           ),
@@ -311,8 +277,7 @@ class ResultScreen extends StatelessWidget {
           _buildModeOption(
             context,
             title: 'Market',
-            description:
-                'Tentukan harga pas dari kamu. Produk masuk ke katalog dan pembeli bisa langsung transaksi.',
+            description: 'Tentukan harga pas dari kamu. Produk masuk ke katalog dan pembeli bisa langsung transaksi.',
             salesMode: 'market',
             majorityGrade: majorityGrade,
           ),
@@ -354,19 +319,13 @@ class ResultScreen extends StatelessWidget {
           children: [
             Text(
               title,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
               description,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Colors.black87,
-              ),
+              style: const TextStyle(fontSize: 13, color: Colors.black87),
             ),
           ],
         ),
