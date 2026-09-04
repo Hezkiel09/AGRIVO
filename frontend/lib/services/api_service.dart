@@ -268,8 +268,12 @@ class ApiService {
   // --- KOMUNITAS API ---
   static Future<List<dynamic>> getKomunitas() async {
     final url = Uri.parse('$baseUrl/api/komunitas');
+    final token = await LocalStorage.getToken();
     try {
-      final response = await http.get(url).timeout(const Duration(seconds: 10));
+      final response = await http.get(
+        url,
+        headers: token != null ? {'Authorization': 'Bearer $token'} : {},
+      ).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return data['data'] ?? [];
@@ -278,6 +282,44 @@ class ApiService {
       print("Error Fetch Komunitas: $e");
     }
     return [];
+  }
+
+  static Future<List<dynamic>> getMyCommunities() async {
+    final url = Uri.parse('$baseUrl/api/komunitas/me');
+    final token = await LocalStorage.getToken();
+    if (token == null) return [];
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['data'];
+      }
+    } catch (e) {
+      print("Error Fetch My Komunitas: $e");
+    }
+    return [];
+  }
+
+  static Future<bool> joinCommunity(int id) async {
+    final url = Uri.parse('$baseUrl/api/komunitas/$id/join');
+    final token = await LocalStorage.getToken();
+    if (token == null) return false;
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      ).timeout(const Duration(seconds: 10));
+      return response.statusCode == 200;
+    } catch (e) {
+      print("Error Join Komunitas: $e");
+      return false;
+    }
   }
 
   static Future<bool> createKomunitas(
@@ -310,6 +352,47 @@ class ApiService {
       return response.statusCode == 200;
     } catch (e) {
       print("Error Create Komunitas: $e");
+      return false;
+    }
+  }
+
+  static Future<List<dynamic>> getChatMessages(int komunitasId) async {
+    final url = Uri.parse('$baseUrl/api/komunitas/$komunitasId/chat');
+    final token = await LocalStorage.getToken();
+    if (token == null) return [];
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      ).timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['data'] ?? [];
+      }
+    } catch (e) {
+      print("Error Fetch Chat Messages: $e");
+    }
+    return [];
+  }
+
+  static Future<bool> sendChatMessage(int komunitasId, String content) async {
+    final url = Uri.parse('$baseUrl/api/komunitas/$komunitasId/chat');
+    final token = await LocalStorage.getToken();
+    if (token == null) return false;
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'content': content}),
+      ).timeout(const Duration(seconds: 10));
+      return response.statusCode == 200;
+    } catch (e) {
+      print("Error Send Chat Message: $e");
       return false;
     }
   }

@@ -188,6 +188,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     if (_isPasswordVisible)
                       TextField(
                         controller: _passwordController,
+                        keyboardType: TextInputType.visiblePassword,
                         obscureText: true,
                         decoration: InputDecoration(
                           hintText: 'Password',
