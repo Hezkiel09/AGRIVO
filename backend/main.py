@@ -119,6 +119,11 @@ class OrderCreate(BaseModel):
 class OrderStatusUpdate(BaseModel):
     status: str
 
+class UserProfileUpdate(BaseModel):
+    full_name: str
+    farm_name: Optional[str] = None
+    location: Optional[str] = None
+
 # --- ROUTES: AUTHENTICATION ---
 @app.post("/api/check-email")
 def check_email(data: CheckEmail, db: Session = Depends(database.get_db)):
@@ -160,6 +165,39 @@ def login(user: UserLogin, db: Session = Depends(database.get_db)):
     
     access_token = auth.create_access_token(data={"sub": db_user.username})
     return {"status": "success", "token": access_token, "role": db_user.role}
+
+# --- ROUTES: USER PROFILE ---
+@app.get("/api/profile")
+def get_profile(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    return {
+        "status": "success",
+        "data": {
+            "username": current_user.username,
+            "role": current_user.role,
+            "full_name": current_user.full_name,
+            "farm_name": current_user.farm_name,
+            "location": current_user.location,
+        }
+    }
+
+@app.put("/api/profile")
+def update_profile(
+    profile_data: UserProfileUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    current_user.full_name = profile_data.full_name
+    current_user.farm_name = profile_data.farm_name
+    current_user.location = profile_data.location
+    db.commit()
+    db.refresh(current_user)
+    return {
+        "status": "success",
+        "message": "Profil berhasil diperbarui"
+    }
 
 # --- ROUTES: API ---
 
