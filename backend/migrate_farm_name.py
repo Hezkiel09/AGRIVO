@@ -1,4 +1,5 @@
 from database import engine
+# pyrefly: ignore [missing-import]
 from sqlalchemy import text
 
 def run_migration():
