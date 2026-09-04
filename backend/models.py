@@ -70,6 +70,30 @@ class Komunitas(Base):
     
     owner_id = Column(Integer, ForeignKey("users.id"))
     owner = relationship("User", back_populates="komunitas")
+    messages = relationship("CommunityMessage", back_populates="komunitas", cascade="all, delete-orphan")
+    members = relationship("CommunityMember", back_populates="komunitas", cascade="all, delete-orphan")
+
+class CommunityMember(Base):
+    __tablename__ = "community_members"
+    id = Column(Integer, primary_key=True, index=True)
+    komunitas_id = Column(Integer, ForeignKey("komunitas.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    komunitas = relationship("Komunitas", back_populates="members")
+    user = relationship("User")
+
+class CommunityMessage(Base):
+    __tablename__ = "community_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    komunitas_id = Column(Integer, ForeignKey("komunitas.id"))
+    sender_id = Column(Integer, ForeignKey("users.id"))
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    komunitas = relationship("Komunitas", back_populates="messages")
+    sender = relationship("User")
 
 
 class Berita(Base):

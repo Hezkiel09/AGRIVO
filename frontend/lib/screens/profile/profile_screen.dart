@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../core/app_routes.dart';
 import '../../services/api_service.dart';
 import 'edit_profile_screen.dart';
@@ -13,22 +14,36 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = true;
   Map<String, dynamic>? _profileData;
+  Map<String, dynamic>? _dashboardData;
 
   @override
   void initState() {
     super.initState();
-    _fetchProfile();
+    _fetchData();
   }
 
-  Future<void> _fetchProfile() async {
+  Future<void> _fetchData() async {
     setState(() => _isLoading = true);
-    final data = await ApiService.getProfile();
+
+    // Ambil profile dan dashboard secara paralel
+    final results = await Future.wait([
+      ApiService.getProfile(),
+      ApiService.getFarmerDashboard(),
+    ]);
+
     if (mounted) {
       setState(() {
-        _profileData = data;
+        _profileData = results[0];
+        _dashboardData = results[1];
         _isLoading = false;
       });
     }
+  }
+
+  void _showComingSoon() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Fitur ini masih dalam tahap pengembangan')),
+    );
   }
 
   String _getInitials(String name) {
@@ -37,7 +52,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (parts.length == 1) {
       return parts[0].substring(0, 1).toUpperCase();
     } else {
-      return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
+      return (parts[0].substring(0, 1) + parts[1].substring(0, 1))
+          .toUpperCase();
     }
   }
 
@@ -45,8 +61,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     String fullName = _profileData?['full_name'] ?? 'Loading...';
     String role = _profileData?['role'] ?? '';
-    String displayRole = role.toLowerCase() == 'umkm' ? 'Mitra UMKM' : 'Petani Premium';
+    String displayRole = role.toLowerCase() == 'umkm' ? 'Mitra UMKM' : 'Petani';
     String initials = _getInitials(fullName);
+
+    String formattedSales = _dashboardData?['formatted_sales'] ?? 'Rp 0';
+    String activeOrders = _dashboardData?['active_orders']?.toString() ?? '0';
+    String totalProducts = _dashboardData?['total_products']?.toString() ?? '0';
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -71,22 +91,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => EditProfileScreen(
-                      currentData: _profileData!,
-                    ),
+                    builder: (context) =>
+                        EditProfileScreen(currentData: _profileData!),
                   ),
-                ).then((_) => _fetchProfile());
+                ).then((_) => _fetchData());
               },
-            )
+            ),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: Colors.green))
           : RefreshIndicator(
-              onRefresh: _fetchProfile,
+              onRefresh: _fetchData,
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.only(left: 16, right: 16, top: 24, bottom: 20),
+                padding: const EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  top: 24,
+                  bottom: 20,
+                ),
                 children: [
                   Center(
                     child: Column(
@@ -106,7 +130,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         const SizedBox(height: 12),
                         Text(
                           fullName,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -124,16 +151,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildStatCard('Rp 4.2M', 'Total Omset'),
-                      _buildStatCard('4.9/5', 'Rating Toko'),
-                      _buildStatCard('42', 'Scanner Hit'),
+                      _buildStatCard(formattedSales, 'Total Omset'),
+                      _buildStatCard(activeOrders, 'Pesanan Aktif'),
+                      _buildStatCard(totalProducts, 'Total Produk'),
                     ],
                   ),
                   const SizedBox(height: 24),
-                  _buildMenuOption(Icons.shopping_bag_outlined, 'Dagangan Saya'),
-                  _buildMenuOption(Icons.history, 'Riwayat Scan & Grade'),
-                  _buildMenuOption(Icons.gavel, 'Lelang Diikuti'),
-                  _buildMenuOption(Icons.settings_outlined, 'Pengaturan Akun'),
+                  _buildMenuOption(
+                    Icons.shopping_bag_outlined,
+                    'Dagangan Saya',
+                    onTap: _showComingSoon,
+                  ),
+                  _buildMenuOption(
+                    Icons.history,
+                    'Riwayat Scan & Grade',
+                    onTap: _showComingSoon,
+                  ),
+                  _buildMenuOption(
+                    Icons.gavel,
+                    'Lelang Diikuti',
+                    onTap: _showComingSoon,
+                  ),
                   const Divider(),
                   _buildMenuOption(
                     Icons.logout,

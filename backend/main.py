@@ -124,6 +124,9 @@ class UserProfileUpdate(BaseModel):
     farm_name: Optional[str] = None
     location: Optional[str] = None
 
+class ChatMessageCreate(BaseModel):
+    content: str
+
 # --- ROUTES: AUTHENTICATION ---
 @app.post("/api/check-email")
 def check_email(data: CheckEmail, db: Session = Depends(database.get_db)):
@@ -435,9 +438,114 @@ def create_komunitas(
     return {"status": "success", "message": "Komunitas berhasil dibuat!"}
 
 @app.get("/api/komunitas")
-def get_komunitas(db: Session = Depends(database.get_db)):
+def get_komunitas(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     komunitas_list = db.query(models.Komunitas).order_by(models.Komunitas.created_at.desc()).all()
-    return {"status": "success", "data": komunitas_list}
+    
+    joined_ids = {mem.komunitas_id for mem in db.query(models.CommunityMember).filter_by(user_id=current_user.id).all()}
+    
+    result = []
+    for k in komunitas_list:
+        k_dict = {
+            "id": k.id,
+            "name": k.name,
+            "category": k.category,
+            "privacy": k.privacy,
+            "description": k.description,
+            "is_joined": k.id in joined_ids
+        }
+        result.append(k_dict)
+        
+    return {"status": "success", "data": result}
+
+@app.get("/api/komunitas/me")
+def get_my_komunitas(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    memberships = db.query(models.CommunityMember).filter_by(user_id=current_user.id).all()
+    result = []
+    for mem in memberships:
+        k = mem.komunitas
+        result.append({
+            "id": k.id,
+            "name": k.name,
+            "category": k.category,
+            "privacy": k.privacy,
+            "description": k.description,
+            "is_joined": True
+        })
+    return {"status": "success", "data": result}
+
+@app.post("/api/komunitas/{komunitas_id}/join")
+def join_komunitas(
+    komunitas_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    komunitas = db.query(models.Komunitas).filter(models.Komunitas.id == komunitas_id).first()
+    if not komunitas:
+        raise HTTPException(status_code=404, detail="Komunitas tidak ditemukan")
+        
+    existing = db.query(models.CommunityMember).filter_by(komunitas_id=komunitas_id, user_id=current_user.id).first()
+    if not existing:
+        new_member = models.CommunityMember(komunitas_id=komunitas_id, user_id=current_user.id)
+        db.add(new_member)
+        db.commit()
+    
+    return {"status": "success", "message": "Berhasil bergabung"}
+
+@app.post("/api/komunitas/{komunitas_id}/chat")
+def send_chat_message(
+    komunitas_id: int,
+    message: ChatMessageCreate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    komunitas = db.query(models.Komunitas).filter(models.Komunitas.id == komunitas_id).first()
+    if not komunitas:
+        raise HTTPException(status_code=404, detail="Komunitas tidak ditemukan")
+    
+    new_message = models.CommunityMessage(
+        komunitas_id=komunitas_id,
+        sender_id=current_user.id,
+        content=message.content
+    )
+    db.add(new_message)
+    db.commit()
+    db.refresh(new_message)
+    
+    return {
+        "status": "success", 
+        "data": {
+            "id": new_message.id,
+            "content": new_message.content,
+            "sender_name": current_user.full_name or current_user.username,
+            "created_at": new_message.created_at.isoformat() + "Z"
+        }
+    }
+
+@app.get("/api/komunitas/{komunitas_id}/chat")
+def get_chat_messages(
+    komunitas_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    komunitas = db.query(models.Komunitas).filter(models.Komunitas.id == komunitas_id).first()
+    if not komunitas:
+        raise HTTPException(status_code=404, detail="Komunitas tidak ditemukan")
+    
+    messages = db.query(models.CommunityMessage).filter(
+        models.CommunityMessage.komunitas_id == komunitas_id
+    ).order_by(models.CommunityMessage.created_at.asc()).all()
+    
+    result = []
+    for msg in messages:
+        result.append({
+            "id": msg.id,
+            "content": msg.content,
+            "sender_name": msg.sender.full_name or msg.sender.username,
+            "is_me": msg.sender_id == current_user.id,
+            "created_at": msg.created_at.isoformat() + "Z"
+        })
+        
+    return {"status": "success", "data": result}
 
 @app.post("/api/berita")
 def create_berita(

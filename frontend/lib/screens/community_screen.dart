@@ -1,7 +1,7 @@
 import 'package:agrivo/services/api_service.dart';
-import 'package:agrivo/screens/create_article_screen.dart';
 import 'package:agrivo/screens/create_community_screen.dart';
 import 'package:agrivo/screens/article_detail_screen.dart';
+import 'package:agrivo/screens/community_chat_screen.dart';
 import 'package:flutter/material.dart';
 
 class CommunityScreen extends StatefulWidget {
@@ -14,7 +14,9 @@ class CommunityScreen extends StatefulWidget {
 class _CommunityScreenState extends State<CommunityScreen> {
   List<dynamic> _beritaList = [];
   List<dynamic> _komunitasList = [];
+  List<dynamic> _myCommunitiesList = [];
   bool _isLoading = true;
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -29,15 +31,92 @@ class _CommunityScreenState extends State<CommunityScreen> {
     final results = await Future.wait([
       ApiService.getBerita(),
       ApiService.getKomunitas(),
+      ApiService.getMyCommunities(),
     ]);
 
     if (mounted) {
       setState(() {
         _beritaList = results[0];
         _komunitasList = results[1];
+        _myCommunitiesList = results[2];
         _isLoading = false;
       });
     }
+  }
+
+  List<dynamic> get _filteredBerita {
+    if (_searchQuery.isEmpty) return _beritaList.take(5).toList();
+    return _beritaList.where((item) {
+      String title = item['title'] ?? '';
+      return title.toLowerCase().contains(_searchQuery.toLowerCase());
+    }).toList();
+  }
+
+  List<dynamic> get _filteredKomunitas {
+    if (_searchQuery.isEmpty) {
+      // Sembunyikan yang sudah bergabung dan batasi 5
+      return _komunitasList
+          .where((item) => item['is_joined'] != true)
+          .take(5)
+          .toList();
+    }
+    return _komunitasList.where((item) {
+      String name = item['name'] ?? '';
+      return name.toLowerCase().contains(_searchQuery.toLowerCase());
+    }).toList();
+  }
+
+  void _showMyCommunities() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Komunitas Saya',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              Expanded(
+                child: _myCommunitiesList.isEmpty
+                    ? const Text('Anda belum bergabung ke komunitas mana pun.')
+                    : ListView.builder(
+                        itemCount: _myCommunitiesList.length,
+                        itemBuilder: (context, index) {
+                          final item = _myCommunitiesList[index];
+                          String name = item['name'] ?? 'K';
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: Colors.green,
+                              child: Text(
+                                name.substring(0, 1).toUpperCase(),
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                            ),
+                            title: Text(name),
+                            onTap: () {
+                              Navigator.pop(context); // Tutup bottom sheet
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      CommunityChatScreen(community: item),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -65,6 +144,11 @@ class _CommunityScreenState extends State<CommunityScreen> {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showMyCommunities,
+        backgroundColor: const Color(0xFF1B4F1E),
+        child: const Icon(Icons.chat_bubble, color: Colors.white),
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: Colors.green))
           : RefreshIndicator(
@@ -75,12 +159,32 @@ class _CommunityScreenState extends State<CommunityScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Search Bar
+                    TextField(
+                      decoration: InputDecoration(
+                        hintText: 'Cari Komunitas atau Artikel...',
+                        prefixIcon: const Icon(Icons.search),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      onChanged: (val) {
+                        setState(() {
+                          _searchQuery = val;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 24),
+
                     // --- BAGIAN TERBARU (BERITA) ---
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
-                          'Terbaru',
+                          'Artikel Terbaru',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -90,16 +194,16 @@ class _CommunityScreenState extends State<CommunityScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    if (_beritaList.isEmpty)
-                      const Text('Belum ada artikel terbaru.')
+                    if (_filteredBerita.isEmpty)
+                      const Text('Artikel tidak ditemukan.')
                     else
                       SizedBox(
                         height: 220,
                         child: ListView.builder(
                           scrollDirection: Axis.horizontal,
-                          itemCount: _beritaList.length,
+                          itemCount: _filteredBerita.length,
                           itemBuilder: (context, index) {
-                            final item = _beritaList[index];
+                            final item = _filteredBerita[index];
                             return _buildBeritaCard(item);
                           },
                         ),
@@ -137,22 +241,22 @@ class _CommunityScreenState extends State<CommunityScreen> {
                             ),
                           ),
                           child: const Text(
-                            'Buat Komunitas Baru',
+                            'Buat Baru',
                             style: TextStyle(fontSize: 12),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
-                    if (_komunitasList.isEmpty)
-                      const Text('Belum ada grup komunitas.')
+                    if (_filteredKomunitas.isEmpty)
+                      const Text('Komunitas tidak ditemukan.')
                     else
                       ListView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        itemCount: _komunitasList.length,
+                        itemCount: _filteredKomunitas.length,
                         itemBuilder: (context, index) {
-                          final item = _komunitasList[index];
+                          final item = _filteredKomunitas[index];
                           return _buildKomunitasCard(item);
                         },
                       ),
@@ -191,7 +295,8 @@ class _CommunityScreenState extends State<CommunityScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(16)),
               child: Container(
                 color: const Color(0xFFF1F8EE),
                 height: 120,
@@ -218,19 +323,11 @@ class _CommunityScreenState extends State<CommunityScreen> {
     );
   }
 
-  Widget _buildPlaceholderImage() {
-    return Container(
-      height: 120,
-      color: Colors.grey[300],
-      child: const Icon(Icons.image, color: Colors.grey, size: 40),
-    );
-  }
-
   Widget _buildKomunitasCard(dynamic item) {
     String name = item['name'] ?? 'Komunitas';
-    String initial = name.isNotEmpty
-        ? name.substring(0, 2).toUpperCase()
-        : 'KO';
+    String initial =
+        name.isNotEmpty ? name.substring(0, 2).toUpperCase() : 'KO';
+    bool isJoined = item['is_joined'] == true;
 
     // Generate warna acak berdasarkan inisial agar unik
     int hash = initial.hashCode;
@@ -283,11 +380,30 @@ class _CommunityScreenState extends State<CommunityScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {
-                      // TODO: Aksi gabung komunitas
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Berhasil gabung ke $name!')),
-                      );
+                    onPressed: () async {
+                      if (isJoined) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                CommunityChatScreen(community: item),
+                          ),
+                        );
+                      } else {
+                        setState(() => _isLoading = true);
+                        bool success = await ApiService.joinCommunity(item['id']);
+                        if (success) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Berhasil gabung ke $name!')),
+                          );
+                          _fetchData(); // Refresh UI to remove it from list and add to my communities
+                        } else {
+                          setState(() => _isLoading = false);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Gagal bergabung.')),
+                          );
+                        }
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1B4F1E),
@@ -297,7 +413,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: const Text('Gabung'),
+                    child: Text(isJoined ? 'Lihat' : 'Gabung'),
                   ),
                 ),
               ],
