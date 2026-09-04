@@ -1,10 +1,21 @@
+from __future__ import annotations
 from datetime import datetime, timedelta, timezone
+from typing import Optional, List
+import os
+import sys
+
+# Ensure backend directory is in sys.path
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
 from jose import JWTError, jwt
 import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-import models, database
+import models
+import database
 
 # Konfigurasi JWT
 SECRET_KEY = "AGRIVO_SUPER_SECRET_KEY_GANTI_DI_PRODUCTION"
@@ -26,7 +37,7 @@ def get_password_hash(password):
     return hashed.decode('utf-8')
 
 # Fungsi JWT
-def create_access_token(data: dict, expires_delta: timedelta | None = None):
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
@@ -57,7 +68,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     return user
 
 # Middleware / Dependency: Role Checker
-def require_role(required_roles: list[str]):
+def require_role(required_roles: List[str]):
     def role_checker(current_user: models.User = Depends(get_current_user)):
         if current_user.role not in required_roles:
             raise HTTPException(

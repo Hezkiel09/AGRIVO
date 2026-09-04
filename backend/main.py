@@ -1,24 +1,38 @@
+from __future__ import annotations
+import os
+import sys
+
+# Ensure backend directory is in sys.path
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
+import shutil
+import requests
+import base64
+import time
+import datetime
+from typing import Optional, List
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException, File, UploadFile, Depends, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from typing import Optional
-import shutil
-import os
-import requests
-import base64
-import time
-import datetime
 
-# DB Imports
-import models, database, auth
+# DB & Local Imports
+import models
+import database
+import auth
 from database import engine
 
-# Tables will be created in lifespan
+try:
+    from apscheduler.schedulers.background import BackgroundScheduler
+except ImportError:
+    # pyrefly: ignore [missing-import]
+    from apscheduler.schedulers.background import BackgroundScheduler
 
-from contextlib import asynccontextmanager
-from apscheduler.schedulers.background import BackgroundScheduler
 import trend_agent
 
 scheduler = BackgroundScheduler()
@@ -29,12 +43,18 @@ async def lifespan(app: FastAPI):
         # Create tables
         models.Base.metadata.create_all(bind=engine)
         print("Starting background scheduler for AI Trend Agent...")
-        scheduler.add_job(trend_agent.generate_trend_article, 'cron', hour=0, minute=0, id="trend_article_job")
-        scheduler.start()
+        try:
+            scheduler.add_job(trend_agent.generate_trend_article, 'cron', hour=0, minute=0, id="trend_article_job")
+            scheduler.start()
+        except Exception as e:
+            print(f"Warning: Could not start scheduler: {e}")
     yield
     if not os.environ.get("TESTING"):
         print("Shutting down background scheduler...")
-        scheduler.shutdown()
+        try:
+            scheduler.shutdown()
+        except Exception:
+            pass
 
 app = FastAPI(lifespan=lifespan)
 
@@ -312,8 +332,6 @@ def create_product(
         file_location = os.path.join(temp_dir, unique_filename)
         with open(file_location, "wb") as buffer:
             shutil.copyfileobj(image.file, buffer)
-        final_image_path = file_location
-
         final_image_path = file_location
 
     expiry_time = None
