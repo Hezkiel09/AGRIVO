@@ -10,6 +10,9 @@ import '../screens/home/home_screen.dart';
 import '../screens/live_scan_screen.dart';
 import '../screens/result_screen.dart';
 
+import '../screens/market/cart_screen.dart';
+import '../screens/market/product_detail_screen.dart';
+
 class AppRoutes {
   static const String splash = '/';
   static const String onboarding = '/onboarding';
@@ -20,6 +23,8 @@ class AppRoutes {
   static const String home = '/home';
   static const String liveScan = '/live-scan';
   static const String result = '/result';
+  static const String cart = '/cart';
+  static const String productDetail = '/product-detail';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -47,6 +52,11 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const HomeScreen(), settings: settings);
       case liveScan:
         return MaterialPageRoute(builder: (_) => const LiveScanScreen(), settings: settings);
+      case cart:
+        return MaterialPageRoute(builder: (_) => const CartScreen(), settings: settings);
+      case productDetail:
+        final product = settings.arguments as Map<String, dynamic>;
+        return MaterialPageRoute(builder: (_) => ProductDetailScreen(product: product), settings: settings);
       case result:
         final args = settings.arguments as Map<String, dynamic>;
         return MaterialPageRoute(
