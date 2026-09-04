@@ -6,6 +6,8 @@ class RoleSelectionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final String? email = ModalRoute.of(context)?.settings.arguments as String?;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -63,6 +65,7 @@ class RoleSelectionScreen extends StatelessWidget {
                 iconColor: Colors.green,
                 iconBgColor: Colors.green.shade100,
                 roleValue: 'petani',
+                email: email,
               ),
               
               const SizedBox(height: 20),
@@ -75,6 +78,7 @@ class RoleSelectionScreen extends StatelessWidget {
                 iconColor: Colors.blue.shade700,
                 iconBgColor: Colors.blue.shade100,
                 roleValue: 'umkm',
+                email: email,
               ),
 
               const SizedBox(height: 40),
@@ -109,10 +113,14 @@ class RoleSelectionScreen extends StatelessWidget {
     required Color iconColor,
     required Color iconBgColor,
     required String roleValue,
+    String? email,
   }) {
     return GestureDetector(
       onTap: () {
-        Navigator.pushNamed(context, AppRoutes.register, arguments: roleValue);
+        Navigator.pushNamed(context, AppRoutes.register, arguments: {
+          'role': roleValue,
+          'email': email,
+        });
       },
       child: Container(
         padding: const EdgeInsets.all(20),

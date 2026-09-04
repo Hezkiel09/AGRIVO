@@ -13,6 +13,37 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _isPasswordVisible = false;
+
+  void _handleContinue() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Silakan masukkan email Anda', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    if (!_isPasswordVisible) {
+      setState(() => _isLoading = true);
+      bool exists = await ApiService.checkEmail(email);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        if (exists) {
+          // Email terdaftar, munculkan kolom password
+          setState(() {
+            _isPasswordVisible = true;
+          });
+        } else {
+          // Email tidak terdaftar, arahkan ke role selection untuk pendaftaran dengan membawa email
+          Navigator.pushNamed(context, AppRoutes.roleSelection, arguments: email);
+        }
+      }
+    } else {
+      // Flow login normal jika password field sudah muncul
+      _login();
+    }
+  }
 
   void _login() async {
     setState(() {
@@ -154,25 +185,26 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    TextField(
-                      controller: _passwordController,
-                      obscureText: true,
-                      decoration: InputDecoration(
-                        hintText: 'Password',
-                        filled: true,
-                        fillColor: Colors.grey.shade100,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide.none,
+                    if (_isPasswordVisible)
+                      TextField(
+                        controller: _passwordController,
+                        obscureText: true,
+                        decoration: InputDecoration(
+                          hintText: 'Password',
+                          filled: true,
+                          fillColor: Colors.grey.shade100,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       ),
-                    ),
-                    const SizedBox(height: 24),
+                    if (_isPasswordVisible) const SizedBox(height: 24),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _isLoading ? null : _login,
+                        onPressed: _isLoading ? null : _handleContinue,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF1B4F1E),
                           foregroundColor: Colors.white,
@@ -191,9 +223,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                   strokeWidth: 2,
                                 ),
                               )
-                            : const Text(
-                                'Masuk',
-                                style: TextStyle(
+                            : Text(
+                                _isPasswordVisible ? 'Masuk' : 'Lanjutkan',
+                                style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -201,62 +233,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    
-                    // OR Divider
-                    Row(
-                      children: [
-                        Expanded(child: Divider(color: Colors.grey.shade300)),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            'OR',
-                            style: TextStyle(
-                              color: Colors.grey.shade500,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                        Expanded(child: Divider(color: Colors.grey.shade300)),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    
-                    // Continue with Google Button
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton(
-                        onPressed: () {
-                          // TODO: Implement Google Sign In
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Fitur Google Sign-In sedang dikembangkan.')),
-                          );
-                        },
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          side: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            // Using a placeholder icon for Google logo since asset may not exist
-                            Icon(Icons.g_mobiledata, color: Colors.blue.shade700, size: 28),
-                            const SizedBox(width: 8),
-                            const Text(
-                              'Continue with Google',
-                              style: TextStyle(
-                                color: Colors.black87,
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),

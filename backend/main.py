@@ -108,6 +108,9 @@ class UserLogin(BaseModel):
     username: str
     password: str
 
+class CheckEmail(BaseModel):
+    email: str
+
 class OrderCreate(BaseModel):
     product_id: int
     quantity: int
@@ -117,6 +120,13 @@ class OrderStatusUpdate(BaseModel):
     status: str
 
 # --- ROUTES: AUTHENTICATION ---
+@app.post("/api/check-email")
+def check_email(data: CheckEmail, db: Session = Depends(database.get_db)):
+    db_user = db.query(models.User).filter(models.User.username == data.email).first()
+    if db_user:
+        return {"exists": True}
+    return {"exists": False}
+
 @app.post("/register")
 def register(user: UserRegister, db: Session = Depends(database.get_db)):
     role = user.role.lower()

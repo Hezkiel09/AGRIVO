@@ -78,6 +78,26 @@ class ApiService {
     }
   }
 
+  static Future<bool> checkEmail(String email) async {
+    final url = Uri.parse('$baseUrl/api/check-email');
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['exists'] ?? false;
+      }
+      return false;
+    } catch (e) {
+      print("Error Check Email: $e");
+      return false;
+    }
+  }
+
   // ==========================================
   // FITUR 2: DETEKSI SAYURAN VIA KAMERA/GALERI
   // ==========================================
