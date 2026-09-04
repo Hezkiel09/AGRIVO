@@ -78,6 +78,73 @@ class ApiService {
     }
   }
 
+  static Future<Map<String, dynamic>?> getProfile() async {
+    final url = Uri.parse('$baseUrl/api/profile');
+    final token = await LocalStorage.getToken();
+    if (token == null) return null;
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['data'];
+      }
+    } catch (e) {
+      print("Error Fetch Profile: $e");
+    }
+    return null;
+  }
+
+  static Future<bool> updateProfile(String fullName, String farmName, String location) async {
+    final url = Uri.parse('$baseUrl/api/profile');
+    final token = await LocalStorage.getToken();
+    if (token == null) return false;
+
+    try {
+      final response = await http.put(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'full_name': fullName,
+          'farm_name': farmName,
+          'location': location,
+        }),
+      ).timeout(const Duration(seconds: 10));
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print("Error Update Profile: $e");
+      return false;
+    }
+  }
+
+  static Future<bool> checkEmail(String email) async {
+    final url = Uri.parse('$baseUrl/api/check-email');
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['exists'] ?? false;
+      }
+      return false;
+    } catch (e) {
+      print("Error Check Email: $e");
+      return false;
+    }
+  }
+
   // ==========================================
   // FITUR 2: DETEKSI SAYURAN VIA KAMERA/GALERI
   // ==========================================

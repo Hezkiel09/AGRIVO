@@ -90,10 +90,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
+  String _role = 'petani';
+  String? _prefilledEmail;
+  bool _isEmailPrefilled = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    
+    // Parse arguments: bisa berupa string (role saja) atau map (role & email)
+    final args = ModalRoute.of(context)?.settings.arguments;
+    
+    if (args != null) {
+      if (args is String) {
+        _role = args;
+      } else if (args is Map<String, dynamic>) {
+        _role = args['role'] ?? 'petani';
+        _prefilledEmail = args['email'];
+      }
+    }
+
+    if (_prefilledEmail != null && !_isEmailPrefilled) {
+      _emailController.text = _prefilledEmail!;
+      _isEmailPrefilled = true;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Ambil argumen role yang dikirim dari RoleSelectionScreen (default: petani)
-    final String role = ModalRoute.of(context)?.settings.arguments as String? ?? 'petani';
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -150,6 +174,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 controller: _emailController,
                 hintText: 'email@contoh.com atau 0812...',
                 keyboardType: TextInputType.emailAddress,
+                enabled: !_isEmailPrefilled, // nonaktifkan jika sudah terisi dari login
               ),
               const SizedBox(height: 16),
               
@@ -259,7 +284,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : () => _register(role),
+                  onPressed: _isLoading ? null : () => _register(_role),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1B4F1E),
                     foregroundColor: Colors.white,
@@ -313,6 +338,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     required TextEditingController controller,
     required String hintText,
     bool obscureText = false,
+    bool enabled = true,
     TextInputType keyboardType = TextInputType.text,
     Widget? suffixIcon,
     Widget? prefixIcon,
@@ -321,6 +347,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,
+      enabled: enabled,
       decoration: InputDecoration(
         hintText: hintText,
         hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),

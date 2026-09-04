@@ -15,8 +15,7 @@ import datetime
 import models, database, auth
 from database import engine
 
-# Create tables
-models.Base.metadata.create_all(bind=engine)
+# Tables will be created in lifespan
 
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -26,12 +25,16 @@ scheduler = BackgroundScheduler()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("Starting background scheduler for AI Trend Agent...")
-    scheduler.add_job(trend_agent.generate_trend_article, 'cron', hour=0, minute=0, id="trend_article_job")
-    scheduler.start()
+    if not os.environ.get("TESTING"):
+        # Create tables
+        models.Base.metadata.create_all(bind=engine)
+        print("Starting background scheduler for AI Trend Agent...")
+        scheduler.add_job(trend_agent.generate_trend_article, 'cron', hour=0, minute=0, id="trend_article_job")
+        scheduler.start()
     yield
-    print("Shutting down background scheduler...")
-    scheduler.shutdown()
+    if not os.environ.get("TESTING"):
+        print("Shutting down background scheduler...")
+        scheduler.shutdown()
 
 app = FastAPI(lifespan=lifespan)
 
@@ -105,6 +108,9 @@ class UserLogin(BaseModel):
     username: str
     password: str
 
+class CheckEmail(BaseModel):
+    email: str
+
 class OrderCreate(BaseModel):
     product_id: int
     quantity: int
@@ -113,7 +119,19 @@ class OrderCreate(BaseModel):
 class OrderStatusUpdate(BaseModel):
     status: str
 
+class UserProfileUpdate(BaseModel):
+    full_name: str
+    farm_name: Optional[str] = None
+    location: Optional[str] = None
+
 # --- ROUTES: AUTHENTICATION ---
+@app.post("/api/check-email")
+def check_email(data: CheckEmail, db: Session = Depends(database.get_db)):
+    db_user = db.query(models.User).filter(models.User.username == data.email).first()
+    if db_user:
+        return {"exists": True}
+    return {"exists": False}
+
 @app.post("/register")
 def register(user: UserRegister, db: Session = Depends(database.get_db)):
     role = user.role.lower()
@@ -147,6 +165,39 @@ def login(user: UserLogin, db: Session = Depends(database.get_db)):
     
     access_token = auth.create_access_token(data={"sub": db_user.username})
     return {"status": "success", "token": access_token, "role": db_user.role}
+
+# --- ROUTES: USER PROFILE ---
+@app.get("/api/profile")
+def get_profile(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    return {
+        "status": "success",
+        "data": {
+            "username": current_user.username,
+            "role": current_user.role,
+            "full_name": current_user.full_name,
+            "farm_name": current_user.farm_name,
+            "location": current_user.location,
+        }
+    }
+
+@app.put("/api/profile")
+def update_profile(
+    profile_data: UserProfileUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    current_user.full_name = profile_data.full_name
+    current_user.farm_name = profile_data.farm_name
+    current_user.location = profile_data.location
+    db.commit()
+    db.refresh(current_user)
+    return {
+        "status": "success",
+        "message": "Profil berhasil diperbarui"
+    }
 
 # --- ROUTES: API ---
 
