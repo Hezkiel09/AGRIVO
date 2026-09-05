@@ -60,12 +60,10 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
               final sn = s.toLowerCase();
               return sn == norm || norm.contains(sn) || sn.contains(norm);
             },
-            orElse: () => '',
+            orElse: () => widget.commodity!.trim().replaceAll(' ', '_'),
           );
-          if (match.isNotEmpty) {
-            _selectedSlug = match;
-            _fetchTrendHarga(match);
-          }
+          _selectedSlug = match;
+          _fetchTrendHarga(match);
         }
       });
     }
@@ -153,8 +151,65 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
   Widget _buildTrendChart() {
     if (_trendData == null) return const SizedBox.shrink();
 
+    final String displayName = _trendData!['commodity_name']?.toString() ??
+        (_selectedSlug ?? 'Komoditas').replaceAll('_', ' ');
+    final dynamic curPriceRaw = _trendData!['current_price'];
+    final int currentPrice = (curPriceRaw is num) ? curPriceRaw.toInt() : 0;
+    final bool hasData = _trendData!['has_data'] != false && currentPrice > 0;
     List<dynamic> trend = _trendData!['trend'] ?? [];
-    if (trend.isEmpty) return const SizedBox.shrink();
+
+    // Jika komoditas belum ada data riwayat harga sama sekali (contoh: Jeruk Bali)
+    if (!hasData || trend.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        margin: const EdgeInsets.only(top: 16, bottom: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFBFBFB),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(
+                color: Color(0xFFE8F5E9),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.storefront_outlined, color: Color(0xFF1B4F1E), size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Belum Ada Riwayat Pasar: $displayName',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: Color(0xFF1B4F1E),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Komoditas ini belum memiliki transaksi atau acuan harga pasar di AGRIVO. Silakan tentukan harga terbaikmu sendiri sesuai mutu dan kualitas panen.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade700,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final String trendStatus = _trendData!['trend_status']?.toString() ?? 'Stabil';
 
     List<FlSpot> spots = [];
     double minPrice = double.infinity;
@@ -167,39 +222,102 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
       if (price > maxPrice) maxPrice = price;
     }
 
-    // Add padding to Y axis
-    minPrice = minPrice - 1000;
-    maxPrice = maxPrice + 1000;
+    bool isFlat = spots.every((s) => s.y == spots.first.y);
+    if (isFlat) {
+      double base = spots.first.y;
+      minPrice = base > 0 ? base * 0.8 : 0;
+      maxPrice = base > 0 ? base * 1.2 : 20000;
+    } else {
+      double pad = (maxPrice - minPrice) * 0.15;
+      minPrice -= pad;
+      maxPrice += pad;
+    }
+
+    String formattedCurPrice = currentPrice.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (m) => '${m[1]}.',
+    );
 
     return Container(
-      height: 250,
       padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(top: 24, bottom: 16),
+      margin: const EdgeInsets.only(top: 16, bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFFF7FAF7),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFDCEAD9)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
-            offset: const Offset(0, 4),
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Tren Harga Pasar ($_selectedSlug)',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Tren Pasar: $displayName',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: Color(0xFF1B4F1E),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Acuan Pasar: Rp $formattedCurPrice / kg',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: trendStatus.contains('Naik')
+                      ? const Color(0xFFE8F5E9)
+                      : const Color(0xFFEFEFEF),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: trendStatus.contains('Naik')
+                        ? const Color(0xFF81C784)
+                        : Colors.grey.shade400,
+                  ),
+                ),
+                child: Text(
+                  trendStatus,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: trendStatus.contains('Naik')
+                        ? const Color(0xFF2E7D32)
+                        : Colors.black87,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          Expanded(
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 180,
             child: LineChart(
               LineChartData(
                 minY: minPrice,
                 maxY: maxPrice,
-                gridData: FlGridData(show: true, drawVerticalLine: false),
+                gridData: const FlGridData(show: true, drawVerticalLine: false),
                 titlesData: FlTitlesData(
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
@@ -210,10 +328,10 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
                         if (index >= 0 && index < trend.length) {
                           String day = trend[index]['day'].toString();
                           return Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
+                            padding: const EdgeInsets.only(top: 6.0),
                             child: Text(
                               day,
-                              style: const TextStyle(fontSize: 10),
+                              style: const TextStyle(fontSize: 10, color: Colors.grey),
                             ),
                           );
                         }
@@ -224,38 +342,73 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      reservedSize: 40,
+                      reservedSize: 42,
                       getTitlesWidget: (value, meta) {
                         return Text(
-                          (value / 1000).toStringAsFixed(0) + 'k',
-                          style: const TextStyle(fontSize: 10),
+                          '${(value / 1000).toStringAsFixed(0)}k',
+                          style: const TextStyle(fontSize: 10, color: Colors.grey),
                         );
                       },
                     ),
                   ),
-                  topTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  rightTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 ),
                 borderData: FlBorderData(show: false),
                 lineBarsData: [
                   LineChartBarData(
                     spots: spots,
-                    isCurved: true,
-                    color: Colors.green,
-                    barWidth: 3,
+                    isCurved: !isFlat,
+                    color: const Color(0xFF1B4F1E),
+                    barWidth: 2.8,
                     isStrokeCapRound: true,
-                    dotData: FlDotData(show: true),
+                    dotData: const FlDotData(show: true),
                     belowBarData: BarAreaData(
                       show: true,
-                      color: Colors.green.withOpacity(0.2),
+                      color: const Color(0xFF1B4F1E).withValues(alpha: 0.12),
                     ),
                   ),
                 ],
+                lineTouchData: LineTouchData(
+                  enabled: true,
+                  handleBuiltInTouches: true,
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipColor: (_) => const Color(0xFF1B4F1E),
+                    tooltipPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    fitInsideHorizontally: true,
+                    fitInsideVertically: true,
+                    getTooltipItems: (spots) => spots.map((spot) {
+                      final idx = spot.x.toInt();
+                      final day = (idx >= 0 && idx < trend.length)
+                          ? trend[idx]['day'].toString()
+                          : '';
+                      final price = spot.y.toInt();
+                      final formatted = price.toString().replaceAllMapped(
+                        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+                        (m) => '${m[1]}.',
+                      );
+                      return LineTooltipItem(
+                        '$day\nRp $formatted/kg',
+                        const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          height: 1.4,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
               ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '👆 Sentuh grafik untuk melihat harga pada hari tertentu',
+            style: TextStyle(
+              fontSize: 11,
+              fontStyle: FontStyle.italic,
+              color: Colors.grey.shade500,
             ),
           ),
         ],
@@ -345,14 +498,14 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
             ),
             const SizedBox(height: 8),
             Autocomplete<String>(
+              initialValue: TextEditingValue(text: widget.commodity ?? _selectedSlug ?? ''),
               optionsBuilder: (TextEditingValue textEditingValue) {
                 if (textEditingValue.text.isEmpty) {
                   return const Iterable<String>.empty();
                 }
+                final query = textEditingValue.text.toLowerCase();
                 return _slugs.where((String option) {
-                  return option.toLowerCase().contains(
-                    textEditingValue.text.toLowerCase(),
-                  );
+                  return option.toLowerCase().contains(query);
                 });
               },
               onSelected: (String selection) {
@@ -363,13 +516,29 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
               },
               fieldViewBuilder:
                   (context, controller, focusNode, onEditingComplete) {
+                    if (controller.text.isEmpty && _selectedSlug != null && _selectedSlug!.isNotEmpty) {
+                      controller.text = _selectedSlug!.replaceAll('_', ' ');
+                    }
                     return TextField(
                       controller: controller,
                       focusNode: focusNode,
                       onEditingComplete: onEditingComplete,
+                      onChanged: (val) {
+                        final q = val.trim();
+                        if (q.isNotEmpty) {
+                          final match = _slugs.firstWhere(
+                            (s) => s.toLowerCase().contains(q.toLowerCase()) || q.toLowerCase().contains(s.toLowerCase()),
+                            orElse: () => q.replaceAll(' ', '_'),
+                          );
+                          setState(() {
+                            _selectedSlug = match;
+                          });
+                          _fetchTrendHarga(match);
+                        }
+                      },
                       decoration: InputDecoration(
-                        hintText: 'Cari komoditas (contoh: Mangga)',
-                        prefixIcon: const Icon(Icons.search),
+                        hintText: 'Cari komoditas (contoh: Mangga, Pisang, Tomat)',
+                        prefixIcon: const Icon(Icons.search, color: Color(0xFF1B4F1E)),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),

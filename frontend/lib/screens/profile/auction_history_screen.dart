@@ -17,6 +17,19 @@ class _AuctionHistoryScreenState extends State<AuctionHistoryScreen> {
   List<dynamic> _myBids = [];
   List<dynamic> _farmerLiveBids = [];
 
+  String _cleanDisplayName(dynamic raw, {String fallback = 'Pembeli'}) {
+    if (raw == null) return fallback;
+    String s = raw.toString().trim();
+    if (s.isEmpty) return fallback;
+    if (s.contains('@')) {
+      s = s.split('@')[0];
+      s = s.replaceAll(RegExp(r'[._\-]+'), ' ');
+      s = s.replaceAllMapped(RegExp(r'([a-zA-Z]+)(\d+)'), (m) => '${m[1]} ${m[2]}');
+    }
+    final words = s.split(' ').where((w) => w.isNotEmpty).map((w) => w[0].toUpperCase() + w.substring(1).toLowerCase());
+    return words.isEmpty ? fallback : words.join(' ');
+  }
+
   @override
   void initState() {
     super.initState();
@@ -423,7 +436,9 @@ class _AuctionHistoryScreenState extends State<AuctionHistoryScreen> {
                               radius: 16,
                               backgroundColor: const Color(0xFF1B4F1E),
                               child: Text(
-                                (b['bidder_name'] ?? 'P')[0].toUpperCase(),
+                                _cleanDisplayName(b['bidder_name']).isNotEmpty
+                                    ? _cleanDisplayName(b['bidder_name'])[0].toUpperCase()
+                                    : 'P',
                                 style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
                               ),
                             ),
@@ -433,7 +448,7 @@ class _AuctionHistoryScreenState extends State<AuctionHistoryScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    b['bidder_name'] ?? 'Pembeli',
+                                    _cleanDisplayName(b['bidder_name']),
                                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                   ),
                                   Text(

@@ -27,6 +27,19 @@ class _CartScreenState extends State<CartScreen> {
     return 'Rp $result';
   }
 
+  String _cleanDisplayName(dynamic raw, {String fallback = 'Petani Agrivo'}) {
+    if (raw == null) return fallback;
+    String s = raw.toString().trim();
+    if (s.isEmpty) return fallback;
+    if (s.contains('@')) {
+      s = s.split('@')[0];
+      s = s.replaceAll(RegExp(r'[._\-]+'), ' ');
+      s = s.replaceAllMapped(RegExp(r'([a-zA-Z]+)(\d+)'), (m) => '${m[1]} ${m[2]}');
+    }
+    final words = s.split(' ').where((w) => w.isNotEmpty).map((w) => w[0].toUpperCase() + w.substring(1).toLowerCase());
+    return words.isEmpty ? fallback : words.join(' ');
+  }
+
   String _getFullImageUrl(String? imagePath) {
     if (imagePath == null || imagePath.isEmpty) return "";
     if (imagePath.startsWith("http")) return imagePath;
@@ -341,7 +354,7 @@ class _CartScreenState extends State<CartScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item.sellerName,
+                  _cleanDisplayName(item.sellerName),
                   style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
