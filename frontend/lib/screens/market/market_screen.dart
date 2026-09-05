@@ -147,7 +147,6 @@ class _MarketScreenState extends State<MarketScreen> {
 
     _liveBids = [];
     _directBuys = [];
-    _allProducts = products;
 
     for (var product in products) {
       if (product['sales_mode'] == 'live_bid') {
@@ -158,14 +157,29 @@ class _MarketScreenState extends State<MarketScreen> {
     }
 
     // If backend has no data yet, merge demo items so UI is rich and never empty
-    if (_liveBids.isEmpty && _searchController.text.isEmpty && _selectedCategory == 'Semua') {
+    if (_liveBids.isEmpty && _searchController.text.isEmpty && (_selectedCategory == 'Semua' || _selectedCategory == 'Live Bid')) {
       _liveBids = List.from(_demoLiveBids);
     }
-    if (_directBuys.isEmpty && _searchController.text.isEmpty && _selectedCategory == 'Semua') {
+    if (_directBuys.isEmpty && _searchController.text.isEmpty && (_selectedCategory == 'Semua' || _selectedCategory == 'Beli Langsung')) {
       _directBuys = List.from(_demoDirectBuys);
     }
-    if (_allProducts.isEmpty && _searchController.text.isEmpty && _selectedCategory == 'Semua') {
-      _allProducts = [..._demoLiveBids, ..._demoDirectBuys];
+
+    if (_selectedCategory == 'Live Bid') {
+      _allProducts = List.from(_liveBids);
+    } else if (_selectedCategory == 'Beli Langsung') {
+      _allProducts = List.from(_directBuys);
+    } else if (_selectedCategory == 'Buah' || _selectedCategory == 'Sayur') {
+      _allProducts = List.from(products);
+      if (_allProducts.isEmpty && _searchController.text.isEmpty) {
+        final allDemo = [..._demoLiveBids, ..._demoDirectBuys];
+        if (_selectedCategory == 'Buah') {
+          _allProducts = allDemo.where((p) => (p['category'] ?? 'Buah').toString().toLowerCase().contains('buah') || p['name'].toString().contains('Nanas') || p['name'].toString().contains('Anggur') || p['name'].toString().contains('Manggis') || p['name'].toString().contains('Alpukat') || p['name'].toString().contains('Jeruk')).toList();
+        } else {
+          _allProducts = allDemo.where((p) => (p['category'] ?? '').toString().toLowerCase().contains('sayur') || p['name'].toString().contains('Tomat')).toList();
+        }
+      }
+    } else {
+      _allProducts = products.isNotEmpty ? List.from(products) : [..._demoLiveBids, ..._demoDirectBuys];
     }
 
     if (mounted) {
@@ -297,16 +311,22 @@ class _MarketScreenState extends State<MarketScreen> {
             ),
             const SizedBox(height: 14),
 
-            // 3. Category Filter Chips (Matching Mockup: Semua, Buah, Sayur)
-            Padding(
+            // 3. Category Filter Chips (Semua, Live Bid, Beli Langsung, Buah, Sayur)
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: Row(
                 children: [
-                  _buildPillChip('Semua'),
-                  const SizedBox(width: 10),
-                  _buildPillChip('Buah'),
-                  const SizedBox(width: 10),
-                  _buildPillChip('Sayur'),
+                  _buildPillChip('Semua', icon: Icons.grid_view_rounded),
+                  const SizedBox(width: 8),
+                  _buildPillChip('Live Bid', icon: Icons.sensors, iconColor: const Color(0xFFE53935)),
+                  const SizedBox(width: 8),
+                  _buildPillChip('Beli Langsung', icon: Icons.shopping_cart_outlined, iconColor: const Color(0xFF1B4F1E)),
+                  const SizedBox(width: 8),
+                  _buildPillChip('Buah', icon: Icons.apple_rounded),
+                  const SizedBox(width: 8),
+                  _buildPillChip('Sayur', icon: Icons.eco_rounded),
                 ],
               ),
             ),
@@ -330,8 +350,9 @@ class _MarketScreenState extends State<MarketScreen> {
     );
   }
 
-  Widget _buildPillChip(String label) {
+  Widget _buildPillChip(String label, {IconData? icon, Color? iconColor}) {
     final bool isSelected = _selectedCategory == label;
+    final Color activeIconColor = isSelected ? Colors.white : (iconColor ?? const Color(0xFF2E7D32));
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -339,19 +360,37 @@ class _MarketScreenState extends State<MarketScreen> {
         });
         _fetchProducts();
       },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8.5),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF1B4F1E) : const Color(0xFFEFEFEF),
+          color: isSelected ? const Color(0xFF1B4F1E) : const Color(0xFFF1F5F0),
           borderRadius: BorderRadius.circular(24),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-            color: isSelected ? Colors.white : const Color(0xFF4A4A4A),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF1B4F1E) : const Color(0xFFE2E8E0),
+            width: 1,
           ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(
+                icon,
+                size: 15,
+                color: activeIconColor,
+              ),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? Colors.white : const Color(0xFF334155),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -399,7 +438,7 @@ class _MarketScreenState extends State<MarketScreen> {
             ),
             GestureDetector(
               onTap: () {
-                setState(() => _selectedCategory = 'Buah');
+                setState(() => _selectedCategory = 'Live Bid');
                 _fetchProducts();
               },
               child: const Text(
@@ -459,7 +498,7 @@ class _MarketScreenState extends State<MarketScreen> {
             ),
             GestureDetector(
               onTap: () {
-                setState(() => _selectedCategory = 'Sayur');
+                setState(() => _selectedCategory = 'Beli Langsung');
                 _fetchProducts();
               },
               child: const Text(
@@ -520,6 +559,24 @@ class _MarketScreenState extends State<MarketScreen> {
             ),
           ],
         ),
+      );
+    }
+
+    if (_selectedCategory == 'Live Bid') {
+      return GridView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(20),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 0.68,
+          crossAxisSpacing: 14,
+          mainAxisSpacing: 14,
+        ),
+        itemCount: _allProducts.length,
+        itemBuilder: (context, index) {
+          final item = _allProducts[index] as Map<String, dynamic>;
+          return LiveBidCard(product: item);
+        },
       );
     }
 
