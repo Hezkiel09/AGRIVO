@@ -25,6 +25,7 @@ def run_migration():
             ("full_name", "VARCHAR(255) NULL"),
             ("farm_name", "VARCHAR(255) NULL"),
             ("location", "VARCHAR(255) NULL"),
+            ("saldo", "INT NULL DEFAULT 0"),
         ],
         "products": [
             ("grade", "VARCHAR(50) NULL"),
