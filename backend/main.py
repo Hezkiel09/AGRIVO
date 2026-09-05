@@ -967,6 +967,17 @@ def create_bid(
     if product.user_id == current_user.id:
         raise HTTPException(status_code=400, detail="Anda tidak dapat menawar produk milik sendiri")
 
+    # Cek kecukupan saldo
+    total_harga = bid_data.bid_amount
+    if (current_user.saldo or 0) < total_harga:
+        raise HTTPException(status_code=400, detail="Saldo tidak mencukupi untuk melakukan penawaran ini")
+
+    # Potong saldo pembeli
+    current_user.saldo = (current_user.saldo or 0) - total_harga  # type: ignore
+
+    # Update harga produk agar naik secara realtime untuk penawar selanjutnya
+    product.price = str(total_harga)  # type: ignore
+
     new_bid = models.Bid(
         product_id=bid_data.product_id,
         bidder_id=current_user.id,
@@ -1038,10 +1049,40 @@ def update_bid_status(
     if status_update.status not in ["accepted", "rejected", "pending"]:
         raise HTTPException(status_code=400, detail="Status harus 'accepted', 'rejected', atau 'pending'")
 
-    bid.status = status_update.status
+    bid.status = status_update.status  # type: ignore
     if status_update.status == "accepted":
         # Update harga produk menjadi tawaran yang diterima
-        bid.product.price = str(bid.bid_amount)
+        bid.product.price = str(bid.bid_amount)  # type: ignore
+        
+        # Tambahkan saldo ke petani (pemilik produk)
+        petani = bid.product.owner
+        petani.saldo = (petani.saldo or 0) + bid.bid_amount  # type: ignore
+        
+        # Tolak semua bid lain yang pending dan kembalikan (refund) saldo mereka
+        other_bids = db.query(models.Bid).filter(
+            models.Bid.product_id == bid.product.id,
+            models.Bid.status == "pending",
+            models.Bid.id != bid.id
+        ).all()
+        
+        for other_bid in other_bids:
+            other_bid.status = "rejected"  # type: ignore
+            kalah = other_bid.bidder
+            kalah.saldo = (kalah.saldo or 0) + other_bid.bid_amount  # type: ignore
+            
+        # Buat entri Order otomatis untuk pemenang lelang
+        new_order = models.Order(
+            product_id=bid.product.id,
+            buyer_id=bid.bidder_id,
+            quantity=bid.product.stock if bid.product.stock else 1, # Anggap memborong sisa stok
+            total_price=str(bid.bid_amount),
+            status="dikirim" 
+        )
+        db.add(new_order)
+        
+        # Habiskan stok produk karena sudah dimenangkan
+        bid.product.stock = 0  # type: ignore
+
     db.commit()
     db.refresh(bid)
 
@@ -1076,6 +1117,31 @@ def extend_live_bid(
     return {
         "status": "success",
         "message": f"Waktu Live Bid berhasil diperpanjang {extend_data.hours} jam!",
+        "data": format_product(product)
+    }
+
+@app.put("/api/products/{product_id}/stop-live-bid")
+def stop_live_bid(
+    product_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Petani mengakhiri Live Bid lebih awal secara manual."""
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Produk tidak ditemukan")
+
+    if product.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Hanya pemilik produk yang dapat menghentikan lelang")
+
+    # Set expiry_time ke waktu saat ini agar lelang langsung dianggap selesai
+    product.expiry_time = datetime.datetime.utcnow()
+    db.commit()
+    db.refresh(product)
+
+    return {
+        "status": "success",
+        "message": "Lelang berhasil diakhiri secara manual!",
         "data": format_product(product)
     }
 

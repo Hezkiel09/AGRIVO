@@ -160,6 +160,56 @@ class _AuctionHistoryScreenState extends State<AuctionHistoryScreen> {
     );
   }
 
+  void _showStopDialog(Map<String, dynamic> product) {
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Akhiri Lelang?', style: TextStyle(fontWeight: FontWeight.bold)),
+          content: const Text(
+            'Lelang ini akan segera diakhiri. Apakah Anda yakin?',
+            style: TextStyle(fontSize: 13),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
+              child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      setDialogState(() => isSubmitting = true);
+                      final res = await ApiService.stopLiveBid(product['id']);
+                      setDialogState(() => isSubmitting = false);
+
+                      if (context.mounted) {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(res['message'] ?? 'Lelang diakhiri'),
+                            backgroundColor: res['success'] ? const Color(0xFF1B4F1E) : Colors.red,
+                          ),
+                        );
+                        if (res['success']) {
+                          _loadData();
+                        }
+                      }
+                    },
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE53935)),
+              child: isSubmitting
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text('Akhiri', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isPetani = _userRole == 'petani';
@@ -293,6 +343,17 @@ class _AuctionHistoryScreenState extends State<AuctionHistoryScreen> {
                           onPressed: () => _showExtendDialog(prod),
                           icon: const Icon(Icons.more_time, size: 14, color: Colors.white),
                           label: const Text('Perpanjang', style: TextStyle(fontSize: 11, color: Colors.white)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1B4F1E),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        )
+                      else
+                        ElevatedButton.icon(
+                          onPressed: () => _showStopDialog(prod),
+                          icon: const Icon(Icons.stop_circle_outlined, size: 14, color: Colors.white),
+                          label: const Text('Akhiri', style: TextStyle(fontSize: 11, color: Colors.white)),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFE53935),
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

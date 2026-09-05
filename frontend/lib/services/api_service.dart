@@ -811,7 +811,34 @@ class ApiService {
       }
     } catch (e) {
       print("Error Create Bid: $e");
-      return {'success': false, 'message': 'Koneksi gagal: $e'};
+      return {'success': false, 'message': 'Terjadi kesalahan sistem'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> stopLiveBid(int productId) async {
+    final url = Uri.parse('$baseUrl/api/products/$productId/stop-live-bid');
+    final token = await LocalStorage.getToken();
+    if (token == null) {
+      return {'success': false, 'message': 'Silakan login terlebih dahulu'};
+    }
+
+    try {
+      final response = await http.put(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      final resData = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {'success': true, 'message': resData['message'] ?? 'Berhasil mengakhiri lelang', 'data': resData['data']};
+      }
+      return {'success': false, 'message': resData['detail'] ?? 'Gagal mengakhiri lelang'};
+    } catch (e) {
+      print("Error Stop Live Bid: $e");
+      return {'success': false, 'message': 'Terjadi kesalahan sistem'};
     }
   }
 
