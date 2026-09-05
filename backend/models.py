@@ -19,6 +19,8 @@ class User(Base):
     komunitas = relationship("Komunitas", back_populates="owner")
     berita = relationship("Berita", back_populates="author")
     orders = relationship("Order", back_populates="buyer", foreign_keys="[Order.buyer_id]")
+    bids = relationship("Bid", back_populates="bidder", foreign_keys="[Bid.bidder_id]")
+    scans = relationship("ScanHistory", back_populates="user", foreign_keys="[ScanHistory.user_id]")
 
 
 class Product(Base):
@@ -42,6 +44,7 @@ class Product(Base):
     
     owner = relationship("User", back_populates="products")
     orders = relationship("Order", back_populates="product")
+    bids = relationship("Bid", back_populates="product", cascade="all, delete-orphan")
 
 class Order(Base):
     __tablename__ = "orders"
@@ -56,6 +59,32 @@ class Order(Base):
     
     product = relationship("Product", back_populates="orders")
     buyer = relationship("User", back_populates="orders", foreign_keys=[buyer_id])
+
+class Bid(Base):
+    __tablename__ = "bids"
+
+    id = Column(Integer, primary_key=True, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    bidder_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    bid_amount = Column(Integer, nullable=False)
+    status = Column(String(20), default="pending", nullable=False) # 'pending', 'accepted', 'rejected'
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    product = relationship("Product", back_populates="bids")
+    bidder = relationship("User", back_populates="bids", foreign_keys=[bidder_id])
+
+class ScanHistory(Base):
+    __tablename__ = "scan_histories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    commodity = Column(String(100), nullable=False)
+    grade = Column(String(50), nullable=False)
+    confidence = Column(String(50), nullable=True)
+    image_path = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    user = relationship("User", back_populates="scans", foreign_keys=[user_id])
 
 class Komunitas(Base):
     __tablename__ = "komunitas"
@@ -119,3 +148,4 @@ class HargaPasar(Base):
     slug = Column(String(100), index=True, nullable=True)
     harga = Column(Integer, nullable=False)
     tanggal_update = Column(DateTime, default=datetime.datetime.utcnow)
+

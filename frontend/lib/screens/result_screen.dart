@@ -4,8 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:image_picker/image_picker.dart';
 import 'package:agrivo/screens/market/create_product_screen.dart';
+import 'package:agrivo/services/api_service.dart';
 
-class ResultScreen extends StatelessWidget {
+class ResultScreen extends StatefulWidget {
   final XFile imageFile;
   final List<dynamic> detections;
 
@@ -15,11 +16,53 @@ class ResultScreen extends StatelessWidget {
     required this.detections,
   }) : super(key: key);
 
+  @override
+  State<ResultScreen> createState() => _ResultScreenState();
+}
+
+class _ResultScreenState extends State<ResultScreen> {
+  bool _historySaved = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _autoSaveScanHistory();
+  }
+
+  String _getCommodityName() {
+    if (widget.detections.isEmpty) return "Komoditas";
+
+    // 1. Cari deteksi dengan tanda is_classname
+    for (var d in widget.detections) {
+      if (d is Map && d['is_classname'] == true) {
+        String name = d['class']?.toString() ?? "";
+        if (name.isNotEmpty) return _formatCommodityName(name);
+      }
+    }
+
+    // 2. Cari deteksi yang bukan Grade (misal nama sayuran/buah)
+    for (var d in widget.detections) {
+      if (d is Map) {
+        String c = d['class']?.toString() ?? "";
+        if (!c.toLowerCase().contains("grade") && c.isNotEmpty) {
+          return _formatCommodityName(c);
+        }
+      }
+    }
+
+    return "Komoditas";
+  }
+
+  String _formatCommodityName(String name) {
+    if (name.isEmpty) return "Komoditas";
+    return name[0].toUpperCase() + name.substring(1).replaceAll('_', ' ');
+  }
+
   String _calculateMajorityGrade() {
-    if (detections.isEmpty) return "Grade Unknown";
+    if (widget.detections.isEmpty) return "Grade Unknown";
 
     // Saring agar hanya menghitung Grade, bukan Classname (nama buah)
-    var gradeDetections = detections
+    var gradeDetections = widget.detections
         .where((d) => d['is_classname'] != true)
         .toList();
     if (gradeDetections.isEmpty) return "Grade Unknown";
@@ -34,10 +77,47 @@ class ResultScreen extends StatelessWidget {
     String majorityGrade = counts.entries
         .reduce((a, b) => a.value > b.value ? a : b)
         .key;
-    if (majorityGrade == "Grade b") {
+    if (majorityGrade.toLowerCase() == "grade b") {
       majorityGrade = "Grade B";
+    } else if (majorityGrade.toLowerCase() == "grade a") {
+      majorityGrade = "Grade A";
+    } else if (majorityGrade.toLowerCase() == "grade c") {
+      majorityGrade = "Grade C";
     }
     return majorityGrade;
+  }
+
+  double _calculateConfidence() {
+    if (widget.detections.isEmpty) return 0.85;
+    double total = 0;
+    int count = 0;
+    for (var d in widget.detections) {
+      if (d is Map && d['confidence'] != null) {
+        total += (d['confidence'] as num).toDouble();
+        count++;
+      }
+    }
+    return count > 0 ? (total / count) : 0.88;
+  }
+
+  Future<void> _autoSaveScanHistory() async {
+    if (_historySaved) return;
+    _historySaved = true;
+
+    try {
+      final commodity = _getCommodityName();
+      final grade = _calculateMajorityGrade();
+      final confidence = _calculateConfidence();
+
+      await ApiService.saveScanHistory(
+        commodity: commodity,
+        grade: grade,
+        confidence: confidence,
+        imagePath: widget.imageFile.path,
+      );
+    } catch (e) {
+      debugPrint('Auto-save scan history error: $e');
+    }
   }
 
   String _getGradeDescription(String grade) {
@@ -55,6 +135,7 @@ class ResultScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     String majorityGrade = _calculateMajorityGrade();
+    String commodityName = _getCommodityName();
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -88,8 +169,8 @@ class ResultScreen extends StatelessWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
                 child: kIsWeb
-                    ? Image.network(imageFile.path, fit: BoxFit.contain)
-                    : Image.file(File(imageFile.path), fit: BoxFit.contain),
+                    ? Image.network(widget.imageFile.path, fit: BoxFit.contain)
+                    : Image.file(File(widget.imageFile.path), fit: BoxFit.contain),
               ),
             ),
           ),
@@ -110,13 +191,33 @@ class ResultScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Hasil Scan :',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Hasil Scan :',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1B4F1E).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            commodityName,
+                            style: const TextStyle(
+                              color: Color(0xFF1B4F1E),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
 
@@ -156,7 +257,7 @@ class ResultScreen extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Grade',
+                                'Grade $commodityName',
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Colors.green[800],
@@ -206,7 +307,7 @@ class ResultScreen extends StatelessWidget {
                             isScrollControlled: true,
                             backgroundColor: Colors.transparent,
                             builder: (context) =>
-                                _buildSalesModeSheet(context, majorityGrade),
+                                _buildSalesModeSheet(context, majorityGrade, commodityName),
                           );
                         },
                         style: ElevatedButton.styleFrom(
@@ -238,7 +339,7 @@ class ResultScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSalesModeSheet(BuildContext context, String majorityGrade) {
+  Widget _buildSalesModeSheet(BuildContext context, String majorityGrade, String commodityName) {
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -272,6 +373,7 @@ class ResultScreen extends StatelessWidget {
             description: 'Laku cepat dalam beberapa jam! Cocok untuk panen segar hari ini agar tidak keburu membusuk.',
             salesMode: 'live_bid',
             majorityGrade: majorityGrade,
+            commodityName: commodityName,
           ),
           const SizedBox(height: 16),
           _buildModeOption(
@@ -280,6 +382,7 @@ class ResultScreen extends StatelessWidget {
             description: 'Tentukan harga pas dari kamu. Produk masuk ke katalog dan pembeli bisa langsung transaksi.',
             salesMode: 'market',
             majorityGrade: majorityGrade,
+            commodityName: commodityName,
           ),
           const SizedBox(height: 20),
         ],
@@ -293,6 +396,7 @@ class ResultScreen extends StatelessWidget {
     required String description,
     required String salesMode,
     required String majorityGrade,
+    required String commodityName,
   }) {
     return GestureDetector(
       onTap: () {
@@ -302,8 +406,9 @@ class ResultScreen extends StatelessWidget {
           MaterialPageRoute(
             builder: (context) => CreateProductScreen(
               salesMode: salesMode,
-              imageFile: imageFile,
+              imageFile: widget.imageFile,
               grade: majorityGrade,
+              commodity: commodityName != "Komoditas" ? commodityName : null,
             ),
           ),
         );

@@ -115,6 +115,35 @@ def format_order(order: models.Order):
         "created_at": order.created_at.isoformat() if order.created_at else None,
     }
 
+def format_bid(bid: models.Bid):
+    return {
+        "id": bid.id,
+        "product_id": bid.product_id,
+        "product_name": bid.product.name if bid.product else "Produk Lelang",
+        "product_image": bid.product.image_path if bid.product else None,
+        "product_grade": bid.product.grade if bid.product else "Grade A",
+        "product_price": bid.product.price if bid.product else "0",
+        "product_unit": bid.product.unit if bid.product else "kg",
+        "product_stock": bid.product.stock if bid.product else 10,
+        "product_expiry_time": bid.product.expiry_time.isoformat() + "Z" if (bid.product and bid.product.expiry_time) else None,
+        "is_expired": (bid.product.expiry_time < datetime.datetime.utcnow()) if (bid.product and bid.product.expiry_time) else False,
+        "bidder_id": bid.bidder_id,
+        "bidder_name": bid.bidder.full_name or bid.bidder.username if bid.bidder else "Pembeli",
+        "bid_amount": bid.bid_amount,
+        "status": bid.status,
+        "created_at": bid.created_at.isoformat() + "Z" if bid.created_at else None,
+    }
+
+def format_scan_history(scan: models.ScanHistory):
+    return {
+        "id": scan.id,
+        "commodity": scan.commodity,
+        "grade": scan.grade,
+        "confidence": scan.confidence,
+        "image_path": scan.image_path,
+        "created_at": scan.created_at.isoformat() + "Z" if scan.created_at else None,
+    }
+
 # --- SCHEMAS ---
 class UserRegister(BaseModel):
     username: str # Will store email
@@ -146,6 +175,22 @@ class UserProfileUpdate(BaseModel):
 
 class ChatMessageCreate(BaseModel):
     content: str
+
+class BidCreate(BaseModel):
+    product_id: int
+    bid_amount: int
+
+class BidStatusUpdate(BaseModel):
+    status: str
+
+class ExtendLiveBid(BaseModel):
+    hours: int
+
+class ScanHistoryCreate(BaseModel):
+    commodity: str
+    grade: str
+    confidence: Optional[str] = None
+    image_path: Optional[str] = None
 
 # --- ROUTES: AUTHENTICATION ---
 @app.post("/api/check-email")
@@ -198,6 +243,7 @@ def get_profile(
     return {
         "status": "success",
         "data": {
+            "id": current_user.id,
             "username": current_user.username,
             "role": current_user.role,
             "full_name": current_user.full_name,
@@ -253,6 +299,7 @@ def petani_dashboard(
     return {
         "status": "success",
         "data": {
+            "id": current_user.id,
             "username": current_user.username,
             "role": current_user.role,
             "total_sales": total_sales,
@@ -261,6 +308,59 @@ def petani_dashboard(
             "active_orders": active_orders,
             "total_products": len(farmer_products),
             "recent_orders": [format_order(o) for o in recent_orders]
+        }
+    }
+
+@app.get("/api/umkm-dashboard", dependencies=[Depends(auth.get_current_user)])
+def umkm_dashboard(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    # Ringkasan pesanan pembeli/UMKM
+    buyer_orders = db.query(models.Order).filter(models.Order.buyer_id == current_user.id).order_by(models.Order.created_at.desc()).all()
+    
+    active_orders = 0
+    for o in buyer_orders:
+        if o.status.lower() in ["pending", "diproses", "dikirim"]:
+            active_orders += 1
+
+    # Featured Live Auction (ambil live bid aktif)
+    now = datetime.datetime.utcnow()
+    live_bid = db.query(models.Product).filter(
+        models.Product.sales_mode == "live_bid",
+        models.Product.expiry_time > now
+    ).order_by(models.Product.created_at.desc()).first()
+    
+    # Fallback jika tidak ada yang masih berlangsung
+    if not live_bid:
+        live_bid = db.query(models.Product).filter(
+            models.Product.sales_mode == "live_bid"
+        ).order_by(models.Product.created_at.desc()).first()
+
+    featured_auction = format_product(live_bid) if live_bid else None
+
+    # Rekomendasi produk (ambil produk beli langsung/market terbaru, maks 3)
+    recommended_query = db.query(models.Product).filter(
+        models.Product.sales_mode != "live_bid"
+    ).order_by(models.Product.created_at.desc()).limit(3).all()
+
+    recommendations = [format_product(p) for p in recommended_query]
+    
+    business_name = current_user.farm_name or current_user.full_name or "Toko Buah Sehat"
+
+    return {
+        "status": "success",
+        "data": {
+            "id": current_user.id,
+            "username": current_user.username,
+            "role": current_user.role,
+            "full_name": current_user.full_name,
+            "business_name": business_name,
+            "location": current_user.location,
+            "active_orders": active_orders,
+            "total_orders": len(buyer_orders),
+            "featured_auction": featured_auction,
+            "recommendations": recommendations,
         }
     }
 
@@ -776,3 +876,175 @@ def manual_trigger_trend_article():
     thread.start()
     
     return {"status": "success", "message": "Trend article generation triggered in background."}
+
+# --- ROUTES: LIVE BIDS ---
+@app.post("/api/bids")
+def create_bid(
+    bid_data: BidCreate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    product = db.query(models.Product).filter(models.Product.id == bid_data.product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Produk tidak ditemukan")
+    
+    if product.sales_mode != "live_bid":
+        raise HTTPException(status_code=400, detail="Produk ini bukan produk live bid")
+        
+    # Periksa apakah lelang sudah selesai
+    if product.expiry_time and product.expiry_time < datetime.datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Lelang live bid untuk produk ini sudah selesai")
+        
+    # Petani tidak boleh menawar produk sendiri
+    if product.user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Anda tidak dapat menawar produk milik sendiri")
+
+    new_bid = models.Bid(
+        product_id=bid_data.product_id,
+        bidder_id=current_user.id,
+        bid_amount=bid_data.bid_amount,
+        status="pending"
+    )
+    db.add(new_bid)
+    db.commit()
+    db.refresh(new_bid)
+
+    return {
+        "status": "success",
+        "message": "Tawaran Anda berhasil diajukan!",
+        "data": format_bid(new_bid)
+    }
+
+@app.get("/api/bids/my")
+def get_my_bids(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Mengambil seluruh lelang yang diikuti oleh user saat ini (buyer/UMKM)."""
+    bids = db.query(models.Bid).filter(models.Bid.bidder_id == current_user.id).order_by(models.Bid.created_at.desc()).all()
+    return {
+        "status": "success",
+        "data": [format_bid(b) for b in bids]
+    }
+
+@app.get("/api/farmer/live-bids")
+def get_farmer_live_bids(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Mengambil seluruh produk live bid milik petani beserta daftar penawaran yang masuk."""
+    live_products = db.query(models.Product).filter(
+        models.Product.user_id == current_user.id,
+        models.Product.sales_mode == "live_bid"
+    ).order_by(models.Product.created_at.desc()).all()
+
+    result = []
+    for prod in live_products:
+        prod_data = format_product(prod)
+        bids = db.query(models.Bid).filter(models.Bid.product_id == prod.id).order_by(models.Bid.bid_amount.desc()).all()
+        prod_data["bids"] = [format_bid(b) for b in bids]
+        prod_data["is_expired"] = (prod.expiry_time < datetime.datetime.utcnow()) if prod.expiry_time else False
+        result.append(prod_data)
+
+    return {
+        "status": "success",
+        "data": result
+    }
+
+@app.put("/api/bids/{bid_id}/status")
+def update_bid_status(
+    bid_id: int,
+    status_update: BidStatusUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Petani menyetujui atau menolak tawaran lelang."""
+    bid = db.query(models.Bid).filter(models.Bid.id == bid_id).first()
+    if not bid:
+        raise HTTPException(status_code=404, detail="Tawaran tidak ditemukan")
+
+    # Pastikan yang approve/reject adalah pemilik produk
+    if bid.product.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Hanya pemilik produk yang dapat mengubah status tawaran")
+
+    if status_update.status not in ["accepted", "rejected", "pending"]:
+        raise HTTPException(status_code=400, detail="Status harus 'accepted', 'rejected', atau 'pending'")
+
+    bid.status = status_update.status
+    if status_update.status == "accepted":
+        # Update harga produk menjadi tawaran yang diterima
+        bid.product.price = str(bid.bid_amount)
+    db.commit()
+    db.refresh(bid)
+
+    return {
+        "status": "success",
+        "message": f"Tawaran berhasil {'disetujui' if bid.status == 'accepted' else 'ditolak'}",
+        "data": format_bid(bid)
+    }
+
+@app.put("/api/products/{product_id}/extend-live-bid")
+def extend_live_bid(
+    product_id: int,
+    extend_data: ExtendLiveBid,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Petani memperpanjang waktu Live Bid."""
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Produk tidak ditemukan")
+
+    if product.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Hanya pemilik produk yang dapat memperpanjang waktu lelang")
+
+    now = datetime.datetime.utcnow()
+    # Jika sudah expired, extend dari now. Jika belum expired, tambahkan dari expiry_time yang ada.
+    base_time = product.expiry_time if (product.expiry_time and product.expiry_time > now) else now
+    product.expiry_time = base_time + datetime.timedelta(hours=extend_data.hours)
+    db.commit()
+    db.refresh(product)
+
+    return {
+        "status": "success",
+        "message": f"Waktu Live Bid berhasil diperpanjang {extend_data.hours} jam!",
+        "data": format_product(product)
+    }
+
+# --- ROUTES: SCAN HISTORY ---
+@app.post("/api/scan-history")
+def save_scan_history(
+    scan_data: ScanHistoryCreate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    new_scan = models.ScanHistory(
+        user_id=current_user.id,
+        commodity=scan_data.commodity,
+        grade=scan_data.grade,
+        confidence=scan_data.confidence,
+        image_path=scan_data.image_path
+    )
+    db.add(new_scan)
+    db.commit()
+    db.refresh(new_scan)
+
+    return {
+        "status": "success",
+        "message": "Riwayat scan berhasil disimpan",
+        "data": format_scan_history(new_scan)
+    }
+
+@app.get("/api/scan-history")
+def get_scan_histories(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    scans = db.query(models.ScanHistory).filter(
+        models.ScanHistory.user_id == current_user.id
+    ).order_by(models.ScanHistory.created_at.desc()).all()
+
+    return {
+        "status": "success",
+        "data": [format_scan_history(s) for s in scans]
+    }

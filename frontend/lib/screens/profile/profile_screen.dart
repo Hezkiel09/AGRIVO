@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../core/app_routes.dart';
 import '../../services/api_service.dart';
+import '../umkm/umkm_orders_screen.dart';
 import 'edit_profile_screen.dart';
+import 'my_products_screen.dart';
+import 'scan_history_screen.dart';
+import 'auction_history_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -25,25 +29,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _fetchData() async {
     setState(() => _isLoading = true);
 
-    // Ambil profile dan dashboard secara paralel
-    final results = await Future.wait([
-      ApiService.getProfile(),
-      ApiService.getFarmerDashboard(),
-    ]);
+    final profile = await ApiService.getProfile();
+    final role = (profile?['role'] ?? '').toString().toLowerCase();
+
+    Map<String, dynamic>? dashboard;
+    if (role == 'umkm') {
+      dashboard = await ApiService.getUmkmDashboard();
+    } else {
+      dashboard = await ApiService.getFarmerDashboard();
+    }
 
     if (mounted) {
       setState(() {
-        _profileData = results[0];
-        _dashboardData = results[1];
+        _profileData = profile;
+        _dashboardData = dashboard;
         _isLoading = false;
       });
     }
-  }
-
-  void _showComingSoon() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Fitur ini masih dalam tahap pengembangan')),
-    );
   }
 
   String _getInitials(String name) {
@@ -59,14 +61,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    String fullName = _profileData?['full_name'] ?? 'Loading...';
+    String fullName = _profileData?['full_name'] ?? 'Pengguna';
     String role = _profileData?['role'] ?? '';
-    String displayRole = role.toLowerCase() == 'umkm' ? 'Mitra UMKM' : 'Petani';
+    bool isUmkm = role.toLowerCase() == 'umkm';
+    String displayRole = isUmkm ? 'Mitra UMKM' : 'Petani';
     String initials = _getInitials(fullName);
 
     String formattedSales = _dashboardData?['formatted_sales'] ?? 'Rp 0';
     String activeOrders = _dashboardData?['active_orders']?.toString() ?? '0';
     String totalProducts = _dashboardData?['total_products']?.toString() ?? '0';
+    String totalOrders = _dashboardData?['total_orders']?.toString() ?? '0';
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -84,7 +88,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         surfaceTintColor: Colors.transparent,
         shadowColor: Colors.black.withValues(alpha: 0.08),
         actions: [
-          if (!_isLoading)
+          if (!_isLoading && _profileData != null)
             IconButton(
               icon: const Icon(Icons.edit, color: Color(0xFF1B4F1E)),
               onPressed: () {
@@ -150,28 +154,83 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 24),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildStatCard(formattedSales, 'Total Omset'),
-                      _buildStatCard(activeOrders, 'Pesanan Aktif'),
-                      _buildStatCard(totalProducts, 'Total Produk'),
-                    ],
+                    children: isUmkm
+                        ? [
+                            _buildStatCard(activeOrders, 'Pesanan Aktif'),
+                            _buildStatCard(totalOrders, 'Total Pesanan'),
+                            _buildStatCard('Aktif', 'Status Akun'),
+                          ]
+                        : [
+                            _buildStatCard(formattedSales, 'Total Omset'),
+                            _buildStatCard(activeOrders, 'Pesanan Aktif'),
+                            _buildStatCard(totalProducts, 'Total Produk'),
+                          ],
                   ),
                   const SizedBox(height: 24),
-                  _buildMenuOption(
-                    Icons.shopping_bag_outlined,
-                    'Dagangan Saya',
-                    onTap: _showComingSoon,
-                  ),
-                  _buildMenuOption(
-                    Icons.history,
-                    'Riwayat Scan & Grade',
-                    onTap: _showComingSoon,
-                  ),
-                  _buildMenuOption(
-                    Icons.gavel,
-                    'Lelang Diikuti',
-                    onTap: _showComingSoon,
-                  ),
+
+                  // Menu Options: Berbeda untuk Petani vs UMKM
+                  if (!isUmkm) ...[
+                    _buildMenuOption(
+                      Icons.shopping_bag_outlined,
+                      'Dagangan Saya',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const MyProductsScreen()),
+                        );
+                      },
+                    ),
+                    _buildMenuOption(
+                      Icons.history,
+                      'Riwayat Scan & Grade',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const ScanHistoryScreen()),
+                        );
+                      },
+                    ),
+                    _buildMenuOption(
+                      Icons.gavel,
+                      'Penawaran Masuk',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AuctionHistoryScreen(
+                              initialRole: 'petani',
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ] else ...[
+                    _buildMenuOption(
+                      Icons.receipt_long_outlined,
+                      'Pesanan Saya',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const UmkmOrdersScreen()),
+                        );
+                      },
+                    ),
+                    _buildMenuOption(
+                      Icons.gavel,
+                      'Tawaran Saya',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AuctionHistoryScreen(
+                              initialRole: 'umkm',
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+
                   const Divider(),
                   _buildMenuOption(
                     Icons.logout,

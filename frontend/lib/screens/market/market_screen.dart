@@ -27,93 +27,6 @@ class _MarketScreenState extends State<MarketScreen> {
 
   Timer? _timer;
 
-  // Demo fallback items for rich visual showcase matching mockup
-  final List<Map<String, dynamic>> _demoLiveBids = [
-    {
-      'id': 'demo_live_1',
-      'name': 'Nanas Madu Pemalang',
-      'image_path': 'assets/images/boxscanfruit.png',
-      'grade': 'Grade A',
-      'price': '505.000',
-      'seller_name': 'Petani Subur Jaya',
-      'location': 'Pemalang, Jawa Tengah',
-      'stock': 50,
-      'unit': 'kg',
-      'sales_mode': 'live_bid',
-      'expiry_time': DateTime.now().add(const Duration(hours: 1, minutes: 15)).toIso8601String(),
-      'description': 'Nanas madu asli Pemalang dengan rasa manis legit dan kadar air tinggi. Dipetik pada tingkat kematangan optimal.',
-    },
-    {
-      'id': 'demo_live_2',
-      'name': 'Anggur Ciwidey Super',
-      'image_path': 'assets/images/apel1.png',
-      'grade': 'Grade A',
-      'price': '42.000',
-      'seller_name': 'Kebun Berkah Jaya',
-      'location': 'Ciwidey, Bandung',
-      'stock': 30,
-      'unit': 'kg',
-      'sales_mode': 'live_bid',
-      'expiry_time': DateTime.now().add(const Duration(hours: 1, minutes: 15)).toIso8601String(),
-      'description': 'Anggur segar perkebunan Ciwidey dengan bulir besar, renyah, dan manis segar tanpa biji berlebih.',
-    },
-  ];
-
-  final List<Map<String, dynamic>> _demoDirectBuys = [
-    {
-      'id': 'demo_direct_1',
-      'name': 'Manggis Super Wanayasa',
-      'image_path': 'assets/images/boxscanfruit.png',
-      'grade': 'Grade A',
-      'price': '35.000',
-      'seller_name': 'Lahan Makmur',
-      'location': 'Depok',
-      'stock': 40,
-      'unit': 'kg',
-      'sales_mode': 'market',
-      'description': 'Manggis ratu buah kualitas ekspor dengan daging putih bersih tebal, asam manis segar sempurna.',
-    },
-    {
-      'id': 'demo_direct_2',
-      'name': 'Alpukat Mentega Jumbo',
-      'image_path': 'assets/images/apel1.png',
-      'grade': 'Grade A',
-      'price': '48.000',
-      'seller_name': 'Kelompok Tani Sejahtera',
-      'location': 'Lembang',
-      'stock': 25,
-      'unit': 'kg',
-      'sales_mode': 'market',
-      'description': 'Alpukat mentega daging tebal tanpa serat, rasa gurih legit creamy dan kaya nutrisi sehat.',
-    },
-    {
-      'id': 'demo_direct_3',
-      'name': 'Tomat Beef Hidroponik',
-      'image_path': 'assets/images/boxscanfruit.png',
-      'grade': 'Grade A',
-      'price': '18.000',
-      'seller_name': 'Agro Mandiri',
-      'location': 'Bogor',
-      'stock': 60,
-      'unit': 'kg',
-      'sales_mode': 'market',
-      'description': 'Tomat beef segar ditanam hidroponik modern, kulit kencang mulus dan daging padat berair.',
-    },
-    {
-      'id': 'demo_direct_4',
-      'name': 'Jeruk Sunkist Fresh',
-      'image_path': 'assets/images/apel1.png',
-      'grade': 'Grade A',
-      'price': '26.000',
-      'seller_name': 'Kebun Berkah Jaya',
-      'location': 'Malang',
-      'stock': 35,
-      'unit': 'kg',
-      'sales_mode': 'market',
-      'description': 'Jeruk manis segar kaya vitamin C, kulit mulus mudah dikupas dan sari buah melimpah.',
-    },
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -156,30 +69,12 @@ class _MarketScreenState extends State<MarketScreen> {
       }
     }
 
-    // If backend has no data yet, merge demo items so UI is rich and never empty
-    if (_liveBids.isEmpty && _searchController.text.isEmpty && (_selectedCategory == 'Semua' || _selectedCategory == 'Live Bid')) {
-      _liveBids = List.from(_demoLiveBids);
-    }
-    if (_directBuys.isEmpty && _searchController.text.isEmpty && (_selectedCategory == 'Semua' || _selectedCategory == 'Beli Langsung')) {
-      _directBuys = List.from(_demoDirectBuys);
-    }
-
     if (_selectedCategory == 'Live Bid') {
       _allProducts = List.from(_liveBids);
     } else if (_selectedCategory == 'Beli Langsung') {
       _allProducts = List.from(_directBuys);
-    } else if (_selectedCategory == 'Buah' || _selectedCategory == 'Sayur') {
-      _allProducts = List.from(products);
-      if (_allProducts.isEmpty && _searchController.text.isEmpty) {
-        final allDemo = [..._demoLiveBids, ..._demoDirectBuys];
-        if (_selectedCategory == 'Buah') {
-          _allProducts = allDemo.where((p) => (p['category'] ?? 'Buah').toString().toLowerCase().contains('buah') || p['name'].toString().contains('Nanas') || p['name'].toString().contains('Anggur') || p['name'].toString().contains('Manggis') || p['name'].toString().contains('Alpukat') || p['name'].toString().contains('Jeruk')).toList();
-        } else {
-          _allProducts = allDemo.where((p) => (p['category'] ?? '').toString().toLowerCase().contains('sayur') || p['name'].toString().contains('Tomat')).toList();
-        }
-      }
     } else {
-      _allProducts = products.isNotEmpty ? List.from(products) : [..._demoLiveBids, ..._demoDirectBuys];
+      _allProducts = List.from(products);
     }
 
     if (mounted) {
@@ -460,20 +355,36 @@ class _MarketScreenState extends State<MarketScreen> {
         const SizedBox(height: 14),
 
         // Horizontal Live Bid Carousel
-        SizedBox(
-          height: 245,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: _liveBids.length,
-            itemBuilder: (context, index) {
-              final item = _liveBids[index] as Map<String, dynamic>;
-              return Padding(
-                padding: const EdgeInsets.only(right: 14.0),
-                child: LiveBidCard(product: item),
-              );
-            },
+        if (_liveBids.isEmpty)
+          Container(
+            height: 100,
+            width: double.infinity,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Text(
+              'Belum ada produk Live Bid aktif saat ini',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+            ),
+          )
+        else
+          SizedBox(
+            height: 245,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _liveBids.length,
+              itemBuilder: (context, index) {
+                final item = _liveBids[index] as Map<String, dynamic>;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 14.0),
+                  child: LiveBidCard(product: item),
+                );
+              },
+            ),
           ),
-        ),
         const SizedBox(height: 26),
 
         // Beli Langsung Header
@@ -520,21 +431,37 @@ class _MarketScreenState extends State<MarketScreen> {
         const SizedBox(height: 14),
 
         // 2-Column Direct Buy Grid
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            childAspectRatio: 0.72,
-            crossAxisSpacing: 14,
-            mainAxisSpacing: 14,
+        if (_directBuys.isEmpty)
+          Container(
+            height: 100,
+            width: double.infinity,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Text(
+              'Belum ada produk Beli Langsung saat ini',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+            ),
+          )
+        else
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: 0.72,
+              crossAxisSpacing: 14,
+              mainAxisSpacing: 14,
+            ),
+            itemCount: _directBuys.length,
+            itemBuilder: (context, index) {
+              final item = _directBuys[index] as Map<String, dynamic>;
+              return MarketProductCard(product: item);
+            },
           ),
-          itemCount: _directBuys.length,
-          itemBuilder: (context, index) {
-            final item = _directBuys[index] as Map<String, dynamic>;
-            return MarketProductCard(product: item);
-          },
-        ),
       ],
     );
   }
