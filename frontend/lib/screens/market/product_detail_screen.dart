@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:agrivo/services/api_service.dart';
 import 'package:agrivo/services/cart_service.dart';
+
 import 'cart_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final Map<String, dynamic> product;
 
-  const ProductDetailScreen({
-    super.key,
-    required this.product,
-  });
+  const ProductDetailScreen({super.key, required this.product});
 
   @override
   State<ProductDetailScreen> createState() => _ProductDetailScreenState();
@@ -48,9 +46,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final String priceStr = product['price']?.toString() ?? '0';
     final int priceNum = CartService.parsePrice(priceStr);
     final String unit = product['unit'] ?? 'kg';
-    final int stock = product['stock'] is int ? product['stock'] : (int.tryParse(product['stock']?.toString() ?? '10') ?? 10);
+    final int stock = product['stock'] is int
+        ? product['stock']
+        : (int.tryParse(product['stock']?.toString() ?? '10') ?? 10);
     final String category = product['category'] ?? 'Sayuran & Buah';
-    final String description = product['description'] != null && product['description'].toString().isNotEmpty
+    final String description =
+        product['description'] != null &&
+            product['description'].toString().isNotEmpty
         ? product['description']
         : 'Hasil panen segar langsung dipetik dari kebun petani mitra Agrivo. Diproses dengan standar mutu terbaik, bebas pestisida berlebih, dan terverifikasi grade kualitasnya menggunakan kecerdasan buatan computer vision Agrivo.';
     final String rawSeller = product['seller_name'] ?? product['farm_name'] ?? 'Petani Subur Jaya';
@@ -60,7 +62,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     bool isExpired = false;
     if (isLiveBid && product['expiry_time'] != null) {
       try {
-        isExpired = DateTime.parse(product['expiry_time']).isBefore(DateTime.now());
+        isExpired = DateTime.parse(product['expiry_time'])
+            .isBefore(DateTime.now());
       } catch (_) {}
     }
 
@@ -71,7 +74,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         elevation: 1,
         shadowColor: Colors.black.withOpacity(0.05),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF1E293B), size: 20),
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            color: Color(0xFF1E293B),
+            size: 20,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -92,7 +99,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 alignment: Alignment.center,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.shopping_cart_outlined, color: Color(0xFF1B4F1E), size: 24),
+                    icon: const Icon(
+                      Icons.shopping_cart_outlined,
+                      color: Color(0xFF1B4F1E),
+                      size: 24,
+                    ),
                     onPressed: () {
                       Navigator.push(
                         context,
@@ -110,7 +121,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           color: Color(0xFFE53935),
                           shape: BoxShape.circle,
                         ),
-                        constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
                         child: Text(
                           '${_cartService.totalItemCount}',
                           textAlign: TextAlign.center,
@@ -147,24 +161,35 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             width: double.infinity,
                             height: 280,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const Icon(Icons.eco, size: 80, color: Colors.green),
+                            errorBuilder: (_, __, ___) => const Icon(
+                              Icons.eco,
+                              size: 80,
+                              color: Colors.green,
+                            ),
                           )
                         : imagePath.isNotEmpty
-                            ? Image.network(
-                                _getFullImageUrl(imagePath),
-                                width: double.infinity,
-                                height: 280,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const Icon(Icons.eco, size: 80, color: Colors.green),
-                              )
-                            : const Icon(Icons.eco, size: 80, color: Colors.green),
+                        ? Image.network(
+                            _getFullImageUrl(imagePath),
+                            width: double.infinity,
+                            height: 280,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const Icon(
+                              Icons.eco,
+                              size: 80,
+                              color: Colors.green,
+                            ),
+                          )
+                        : const Icon(Icons.eco, size: 80, color: Colors.green),
                   ),
                   // Grade Pill Overlay
                   Positioned(
                     top: 16,
                     left: 16,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFF1B4F1E).withOpacity(0.92),
                         borderRadius: BorderRadius.circular(20),
@@ -179,7 +204,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.verified, color: Color(0xFF76FF03), size: 14),
+                          const Icon(
+                            Icons.verified,
+                            color: Color(0xFF76FF03),
+                            size: 14,
+                          ),
                           const SizedBox(width: 6),
                           Text(
                             'AI $grade • Terverifikasi',
@@ -198,15 +227,26 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     bottom: 16,
                     right: 16,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
-                        color: isLiveBid ? const Color(0xFFE53935) : const Color(0xFF2E7D32),
+                        color: isLiveBid
+                            ? const Color(0xFFE53935)
+                            : const Color(0xFF2E7D32),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(isLiveBid ? Icons.sensors : Icons.check_circle_outline, color: Colors.white, size: 14),
+                          Icon(
+                            isLiveBid
+                                ? Icons.sensors
+                                : Icons.check_circle_outline,
+                            color: Colors.white,
+                            size: 14,
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             isLiveBid ? 'Live Bid Lelang' : 'Beli Langsung',
@@ -235,7 +275,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     Container(
                       width: double.infinity,
                       margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 9,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFF1F2),
                         borderRadius: BorderRadius.circular(10),
@@ -243,7 +286,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       ),
                       child: Row(
                         children: const [
-                          Icon(Icons.timer_off_outlined, color: Color(0xFFE11D48), size: 18),
+                          Icon(
+                            Icons.timer_off_outlined,
+                            color: Color(0xFFE11D48),
+                            size: 18,
+                          ),
                           SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -273,7 +320,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF1F8EE),
                           borderRadius: BorderRadius.circular(8),
@@ -302,14 +352,24 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           color: Color(0xFF1B4F1E),
                         ),
                       ),
-                      Text(
-                        ' / $unit',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade600,
-                          fontWeight: FontWeight.w500,
+                      if (!isLiveBid)
+                        Text(
+                          ' / $unit',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade600,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
-                      ),
+                      if (isLiveBid)
+                        Text(
+                          ' / $stock $unit',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade600,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -319,19 +379,37 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       const SizedBox(width: 4),
                       const Text(
                         '4.9',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
                       ),
                       const SizedBox(width: 4),
                       Text(
                         '(98 Ulasan)',
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
                       ),
                       const SizedBox(width: 12),
-                      Container(width: 4, height: 4, decoration: BoxDecoration(color: Colors.grey.shade400, shape: BoxShape.circle)),
+                      Container(
+                        width: 4,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade400,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
                       const SizedBox(width: 12),
                       Text(
                         'Stok: $stock $unit',
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w500),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade700,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ],
                   ),
@@ -352,9 +430,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     decoration: BoxDecoration(
                       color: const Color(0xFFE8F5E9),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFC8E6C9), width: 1),
+                      border: Border.all(
+                        color: const Color(0xFFC8E6C9),
+                        width: 1,
+                      ),
                     ),
-                    child: const Icon(Icons.person, color: Color(0xFF1B4F1E), size: 28),
+                    child: const Icon(
+                      Icons.person,
+                      color: Color(0xFF1B4F1E),
+                      size: 28,
+                    ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -376,18 +461,29 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               ),
                             ),
                             const SizedBox(width: 4),
-                            const Icon(Icons.verified, size: 14, color: Color(0xFF2E7D32)),
+                            const Icon(
+                              Icons.verified,
+                              size: 14,
+                              color: Color(0xFF2E7D32),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 3),
                         Row(
                           children: [
-                            const Icon(Icons.location_on_outlined, size: 13, color: Colors.grey),
+                            const Icon(
+                              Icons.location_on_outlined,
+                              size: 13,
+                              color: Colors.grey,
+                            ),
                             const SizedBox(width: 3),
                             Expanded(
                               child: Text(
                                 location,
-                                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -408,8 +504,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     },
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: Color(0xFF1B4F1E)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                     ),
                     child: const Text(
                       'Lihat Kebun',
@@ -456,9 +557,21 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   // Specification Pills Row
                   Row(
                     children: [
-                      _buildSpecItem(Icons.eco_outlined, 'Metode', 'Organik Alami'),
-                      _buildSpecItem(Icons.inventory_2_outlined, 'Kualitas', 'Grade Super'),
-                      _buildSpecItem(Icons.local_shipping_outlined, 'Pengiriman', 'Langsung'),
+                      _buildSpecItem(
+                        Icons.eco_outlined,
+                        'Metode',
+                        'Organik Alami',
+                      ),
+                      _buildSpecItem(
+                        Icons.inventory_2_outlined,
+                        'Kualitas',
+                        'Grade Super',
+                      ),
+                      _buildSpecItem(
+                        Icons.local_shipping_outlined,
+                        'Pengiriman',
+                        'Langsung',
+                      ),
                     ],
                   ),
                 ],
@@ -496,16 +609,23 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.remove, size: 18),
-                        onPressed: _quantity > 1 ? () => setState(() => _quantity--) : null,
+                        onPressed: _quantity > 1
+                            ? () => setState(() => _quantity--)
+                            : null,
                         color: const Color(0xFF1B4F1E),
                       ),
                       Text(
                         '$_quantity',
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       IconButton(
                         icon: const Icon(Icons.add, size: 18),
-                        onPressed: _quantity < stock ? () => setState(() => _quantity++) : null,
+                        onPressed: _quantity < stock
+                            ? () => setState(() => _quantity++)
+                            : null,
                         color: const Color(0xFF1B4F1E),
                       ),
                     ],
@@ -525,12 +645,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           children: [
                             const Icon(Icons.check_circle, color: Colors.white),
                             const SizedBox(width: 8),
-                            Expanded(child: Text('$_quantity $unit $name ditambahkan ke keranjang!')),
+                            Expanded(
+                              child: Text(
+                                '$_quantity $unit $name ditambahkan ke keranjang!',
+                              ),
+                            ),
                           ],
                         ),
                         backgroundColor: const Color(0xFF1B4F1E),
                         behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                     );
                   },
@@ -539,10 +665,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     height: 48,
                     width: 48,
                     decoration: BoxDecoration(
-                      border: Border.all(color: const Color(0xFF1B4F1E), width: 1.5),
+                      border: Border.all(
+                        color: const Color(0xFF1B4F1E),
+                        width: 1.5,
+                      ),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.add_shopping_cart, color: Color(0xFF1B4F1E)),
+                    child: const Icon(
+                      Icons.add_shopping_cart,
+                      color: Color(0xFF1B4F1E),
+                    ),
                   ),
                 ),
               if (!isLiveBid) const SizedBox(width: 12),
@@ -556,21 +688,31 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           if (isLiveBid) {
                             _showBidDialog(context, name, priceNum);
                           } else {
-                            _showDirectBuyConfirmation(product, _quantity, priceNum);
+                            _showDirectBuyConfirmation(
+                              product,
+                              _quantity,
+                              priceNum,
+                            );
                           }
                         },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: (isLiveBid && isExpired) ? const Color(0xFF94A3B8) : const Color(0xFF1B4F1E),
+                    backgroundColor: (isLiveBid && isExpired)
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF1B4F1E),
                     foregroundColor: Colors.white,
                     disabledBackgroundColor: const Color(0xFFCBD5E1),
                     disabledForegroundColor: const Color(0xFF64748B),
                     minimumSize: const Size(double.infinity, 48),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     elevation: 0,
                   ),
                   child: Text(
                     isLiveBid
-                        ? (isExpired ? 'Live Bid Selesai' : 'Tawar Sekarang (Bid)')
+                        ? (isExpired
+                              ? 'Live Bid Selesai'
+                              : 'Tawar Sekarang (Bid)')
                         : 'Beli Langsung',
                     style: const TextStyle(
                       fontSize: 15,
@@ -608,7 +750,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             Text(
               value,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+              style: const TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1E293B),
+              ),
             ),
           ],
         ),
@@ -630,7 +776,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     return 'Rp $result';
   }
 
-  Future<void> _showDirectBuyConfirmation(Map<String, dynamic> product, int quantity, int price) async {
+  Future<void> _showDirectBuyConfirmation(
+    Map<String, dynamic> product,
+    int quantity,
+    int price,
+  ) async {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -641,7 +791,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
     if (profile == null) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gagal mengambil data profil')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Gagal mengambil data profil')),
+        );
       }
       return;
     }
@@ -654,18 +806,30 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Konfirmasi Pembelian', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: const Text(
+          'Konfirmasi Pembelian',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Detail Pembelian:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text(
+              'Detail Pembelian:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(product['name'] ?? 'Produk', style: const TextStyle(fontSize: 14)),
-                Text('${quantity}x', style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  product['name'] ?? 'Produk',
+                  style: const TextStyle(fontSize: 14),
+                ),
+                Text(
+                  '${quantity}x',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
               ],
             ),
             const SizedBox(height: 4),
@@ -673,23 +837,41 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Harga Total:', style: TextStyle(fontSize: 14)),
-                Text(_formatRupiah(totalPrice), style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1B4F1E))),
+                Text(
+                  _formatRupiah(totalPrice),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1B4F1E),
+                  ),
+                ),
               ],
             ),
             const Divider(height: 24),
-            const Text('Metode Pembayaran:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text(
+              'Metode Pembayaran:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Saldo Anda:'),
-                Text(_formatRupiah(saldo), style: TextStyle(color: isSufficient ? const Color(0xFF1B4F1E) : Colors.red, fontWeight: FontWeight.bold)),
+                Text(
+                  _formatRupiah(saldo),
+                  style: TextStyle(
+                    color: isSufficient ? const Color(0xFF1B4F1E) : Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ],
             ),
             if (!isSufficient)
               const Padding(
                 padding: EdgeInsets.only(top: 8),
-                child: Text('Saldo tidak mencukupi, silakan top up di menu Profil.', style: TextStyle(color: Colors.red, fontSize: 12)),
+                child: Text(
+                  'Saldo tidak mencukupi, silakan top up di menu Profil.',
+                  style: TextStyle(color: Colors.red, fontSize: 12),
+                ),
               ),
           ],
         ),
@@ -705,117 +887,174 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     showDialog(
                       context: context,
                       barrierDismissible: false,
-                      builder: (ctx2) => const Center(child: CircularProgressIndicator()),
+                      builder: (ctx2) =>
+                          const Center(child: CircularProgressIndicator()),
                     );
-                    final result = await ApiService.buyDirect(product['id'], quantity);
+                    final result = await ApiService.buyDirect(
+                      product['id'],
+                      quantity,
+                    );
                     if (context.mounted) Navigator.pop(context);
                     if (result['success']) {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(result['message'] ?? 'Berhasil membeli produk!'), backgroundColor: const Color(0xFF1B4F1E)),
+                          SnackBar(
+                            content: Text(
+                              result['message'] ?? 'Berhasil membeli produk!',
+                            ),
+                            backgroundColor: const Color(0xFF1B4F1E),
+                          ),
                         );
                         Navigator.pop(context); // Go back to market
                       }
                     } else {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(result['message'] ?? 'Gagal membeli produk'), backgroundColor: Colors.red),
+                          SnackBar(
+                            content: Text(
+                              result['message'] ?? 'Gagal membeli produk',
+                            ),
+                            backgroundColor: Colors.red,
+                          ),
                         );
                       }
                     }
                   }
                 : null,
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1B4F1E)),
-            child: const Text('Bayar dengan Saldo', style: TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1B4F1E),
+            ),
+            child: const Text(
+              'Bayar dengan Saldo',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
     );
   }
 
-  void _showBidDialog(BuildContext context, String productName, int currentPrice) {
-    final TextEditingController bidController = TextEditingController(text: '${currentPrice + 10000}');
+  Future<void> _showBidDialog(
+    BuildContext context,
+    String productName,
+    int currentPrice,
+  ) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(child: CircularProgressIndicator()),
+    );
+    final profile = await ApiService.getProfile();
+    if (context.mounted) Navigator.pop(context);
+
+    if (profile == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gagal mengambil data profil')));
+      }
+      return;
+    }
+    int saldo = profile['saldo'] ?? 0;
+
+    final TextEditingController bidController = TextEditingController(
+      text: '${currentPrice + 10000}',
+    );
     bool isSubmitting = false;
 
+    if (!context.mounted) return;
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text('Ajukan Tawaran $productName', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Harga dasar / tawaran saat ini:', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-              Text(
-                'Rp $currentPrice',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1B4F1E)),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: bidController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Nominal Tawaran Anda',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                  prefixText: 'Rp ',
+        builder: (context, setDialogState) {
+          int currentBidAmount = int.tryParse(bidController.text.trim().replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+          bool isSufficient = saldo >= currentBidAmount;
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Text('Ajukan Tawaran $productName', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Harga dasar / tawaran saat ini:', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                Text('Rp $currentPrice', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1B4F1E))),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: bidController,
+                  keyboardType: TextInputType.number,
+                  onChanged: (val) {
+                    setDialogState(() {}); // re-evaluate isSufficient
+                  },
+                  decoration: InputDecoration(
+                    labelText: 'Nominal Tawaran Anda',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    prefixText: 'Rp ',
+                  ),
                 ),
+                const SizedBox(height: 8),
+                Text(
+                  'Tawaran Anda akan masuk ke daftar penawaran petani dan dapat disetujui selama live bid berlangsung.\nPerhatian: Harga sesuai dengan yang dipasang user (seluruh stok).',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Saldo Anda:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    Text(
+                      _formatRupiah(saldo),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isSufficient ? const Color(0xFF1B4F1E) : Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                if (!isSufficient)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 4),
+                    child: Text('Saldo tidak mencukupi untuk tawaran ini', style: TextStyle(color: Colors.red, fontSize: 11)),
+                  ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
+                child: const Text('Batal', style: TextStyle(color: Colors.grey)),
               ),
-              const SizedBox(height: 8),
-              Text(
-                'Tawaran Anda akan masuk ke daftar penawaran petani dan dapat disetujui selama live bid berlangsung.',
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+              ElevatedButton(
+                onPressed: (isSubmitting || !isSufficient)
+                    ? null
+                    : () async {
+                        if (currentBidAmount <= currentPrice) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tawaran harus lebih tinggi dari harga saat ini!'), backgroundColor: Colors.red));
+                          return;
+                        }
+
+                        setDialogState(() => isSubmitting = true);
+                        final productId = widget.product['id'] is int ? widget.product['id'] : int.tryParse(widget.product['id'].toString()) ?? 0;
+                        final res = await ApiService.createBid(productId, currentBidAmount);
+                        setDialogState(() => isSubmitting = false);
+
+                        if (context.mounted) {
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(res['message'] ?? 'Tawaran diajukan'),
+                              backgroundColor: res['success'] == true ? const Color(0xFF1B4F1E) : Colors.red,
+                            ),
+                          );
+                        }
+                      },
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1B4F1E)),
+                child: isSubmitting
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Text('Kirim Tawaran', style: TextStyle(color: Colors.white)),
               ),
             ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
-              child: const Text('Batal'),
-            ),
-            ElevatedButton(
-              onPressed: isSubmitting
-                  ? null
-                  : () async {
-                      final int bidAmount = int.tryParse(bidController.text.trim().replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-                      if (bidAmount <= 0) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Masukkan nominal tawaran yang valid!'), backgroundColor: Colors.red),
-                        );
-                        return;
-                      }
-                      if (bidAmount <= currentPrice) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Tawaran harus lebih tinggi dari harga saat ini!'), backgroundColor: Colors.red),
-                        );
-                        return;
-                      }
-
-                      setDialogState(() => isSubmitting = true);
-                      final productId = widget.product['id'] is int ? widget.product['id'] : int.tryParse(widget.product['id'].toString()) ?? 0;
-                      final res = await ApiService.createBid(productId, bidAmount);
-                      setDialogState(() => isSubmitting = false);
-
-                      if (context.mounted) {
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(res['message'] ?? 'Tawaran diajukan'),
-                            backgroundColor: res['success'] == true ? const Color(0xFF1B4F1E) : Colors.red,
-                          ),
-                        );
-                      }
-                    },
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1B4F1E)),
-              child: isSubmitting
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Text('Kirim Tawaran', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 }
-

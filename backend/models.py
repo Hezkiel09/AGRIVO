@@ -13,7 +13,7 @@ class User(Base):
     full_name = Column(String(255), nullable=True)
     farm_name = Column(String(255), nullable=True)
     location = Column(String(255), nullable=True)
-    saldo = Column(Integer, default=0, nullable=False)
+    saldo = Column(Integer, default=0, nullable=True)
     
     # Relationship with other tables
     products = relationship("Product", back_populates="owner")
@@ -55,7 +55,7 @@ class Order(Base):
     buyer_id = Column(Integer, ForeignKey("users.id"))
     quantity = Column(Integer, nullable=False)
     total_price = Column(String(100), nullable=False)
-    status = Column(String(20), default="pending", nullable=False) # 'pending', 'diproses', 'dikirim', 'selesai', 'dibatalkan'
+    status = Column(String(20), default="pending", nullable=False) # 'pending', 'dikirim', 'selesai', 'dibatalkan'
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     
     product = relationship("Product", back_populates="orders")
