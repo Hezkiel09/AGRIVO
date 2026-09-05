@@ -73,6 +73,19 @@ app.add_middleware(
 API_KEY = "tUhJ7SYMaCdbnFD8OlNu"
 
 # --- HELPER FUNCTIONS ---
+def clean_display_name(raw_name: str, fallback: str = "Pengguna") -> str:
+    if not raw_name:
+        return fallback
+    s = str(raw_name).strip()
+    if "@" in s:
+        part = s.split("@")[0]
+        # Bersihkan pemisah seperti titik, underscore, tanda minus
+        clean = re.sub(r'[._\-]+', ' ', part).strip()
+        # Pisahkan huruf dan angka jika menyatu, misal petanuy123 -> Petanuy 123
+        clean = re.sub(r'([a-zA-Z]+)(\d+)', r'\1 \2', clean)
+        return clean.title() if clean else fallback
+    return s.title()
+
 def parse_price_to_int(price_val) -> int:
     if isinstance(price_val, (int, float)):
         return int(price_val)
@@ -82,6 +95,20 @@ def parse_price_to_int(price_val) -> int:
     return int(digits) if digits else 0
 
 def format_product(product: models.Product):
+    seller_raw = ""
+    if product.owner:
+        # Prioritas: farm_name > full_name (jika bukan email) > username
+        # clean_display_name akan otomatis membersihkan jika mengandung '@'
+        farm = product.owner.farm_name or ""
+        full = product.owner.full_name or ""
+        uname = product.owner.username or ""
+        # Jika full_name mengandung '@', abaikan dan gunakan username
+        if farm:
+            seller_raw = farm
+        elif full and "@" not in full:
+            seller_raw = full
+        else:
+            seller_raw = uname  # clean_display_name akan bersihkan jika email
     return {
         "id": product.id,
         "name": product.name,
@@ -96,19 +123,39 @@ def format_product(product: models.Product):
         "expiry_time": product.expiry_time.isoformat() + "Z" if product.expiry_time else None,
         "created_at": product.created_at.isoformat() + "Z" if product.created_at else None,
         "seller_id": product.user_id,
-        "seller_name": product.owner.username if product.owner else "Petani Agrivo",
+        "seller_name": clean_display_name(seller_raw, fallback="Petani Agrivo"),
     }
 
 def format_order(order: models.Order):
+    # buyer_raw: prioritaskan full_name (jika bukan email), fallback ke username
+    buyer_raw = ""
+    if order.buyer:
+        full = order.buyer.full_name or ""
+        uname = order.buyer.username or ""
+        buyer_raw = full if (full and "@" not in full) else uname
+    
+    # seller_raw: prioritaskan farm_name, lalu full_name (bukan email), lalu username
+    seller_raw = ""
+    if order.product and order.product.owner:
+        farm = order.product.owner.farm_name or ""
+        full = order.product.owner.full_name or ""
+        uname = order.product.owner.username or ""
+        if farm:
+            seller_raw = farm
+        elif full and "@" not in full:
+            seller_raw = full
+        else:
+            seller_raw = uname
+
     return {
         "id": order.id,
         "product_id": order.product_id,
         "product_name": order.product.name if order.product else "Produk",
         "product_image": order.product.image_path if order.product else None,
         "buyer_id": order.buyer_id,
-        "buyer_name": order.buyer.username if order.buyer else "Pembeli",
+        "buyer_name": clean_display_name(buyer_raw, fallback="Pembeli"),
         "seller_id": order.product.user_id if order.product else None,
-        "seller_name": order.product.owner.username if (order.product and order.product.owner) else "Petani",
+        "seller_name": clean_display_name(seller_raw, fallback="Petani Agrivo"),
         "quantity": order.quantity,
         "total_price": order.total_price,
         "status": order.status,
@@ -116,6 +163,11 @@ def format_order(order: models.Order):
     }
 
 def format_bid(bid: models.Bid):
+    bidder_raw = ""
+    if bid.bidder:
+        full = bid.bidder.full_name or ""
+        uname = bid.bidder.username or ""
+        bidder_raw = full if (full and "@" not in full) else uname
     return {
         "id": bid.id,
         "product_id": bid.product_id,
@@ -128,7 +180,7 @@ def format_bid(bid: models.Bid):
         "product_expiry_time": bid.product.expiry_time.isoformat() + "Z" if (bid.product and bid.product.expiry_time) else None,
         "is_expired": (bid.product.expiry_time < datetime.datetime.utcnow()) if (bid.product and bid.product.expiry_time) else False,
         "bidder_id": bid.bidder_id,
-        "bidder_name": bid.bidder.full_name or bid.bidder.username if bid.bidder else "Pembeli",
+        "bidder_name": clean_display_name(bidder_raw, fallback="Pembeli"),
         "bid_amount": bid.bid_amount,
         "status": bid.status,
         "created_at": bid.created_at.isoformat() + "Z" if bid.created_at else None,
@@ -337,6 +389,163 @@ def buy_direct(
 
 # --- ROUTES: API ---
 
+def calculate_market_trend(db: Session):
+    import re
+    from collections import defaultdict
+
+    def extract_commodity_name(slug, name):
+        target = slug or name or 'KOMODITAS'
+        parts = re.split(r'[-_ ]+', str(target).strip())
+        for p in parts:
+            clean = re.sub(r'[^a-zA-Z]', '', p)
+            if clean:
+                return clean.upper()
+        return 'KOMODITAS'
+
+    # 1. Ambil seluruh pesanan yang berstatus 'dikirim' atau 'selesai' dari seluruh petani (KECUALIKAN LIVE BID)
+    shipped_orders = db.query(models.Order).join(models.Product).filter(
+        models.Order.status.in_(["dikirim", "selesai", "completed"]),
+        models.Product.sales_mode != "live_bid"
+    ).all()
+
+    # 2. Hitung volume pesanan 7 hari terakhir secara global
+    today = datetime.datetime.utcnow().date()
+    days_vols = []
+    days_labels = []
+    total_7d_shipped = 0
+    today_shipped = 0
+
+    for i in range(7):
+        d = today - datetime.timedelta(days=6 - i)
+        days_labels.append(d.strftime("%d %b"))
+        vol_on_day = sum(
+            o.quantity for o in shipped_orders 
+            if o.created_at and o.created_at.date() == d
+        )
+        days_vols.append(vol_on_day)
+        total_7d_shipped += vol_on_day
+        if i == 6:
+            today_shipped = vol_on_day
+
+    # 3. Akurasi kurva grafik agregat (points)
+    points = []
+    if total_7d_shipped == 0:
+        points = [0.20, 0.20, 0.20, 0.20, 0.20, 0.20, 0.20]
+        growth_label = "Aktivitas perdagangan pasar nasional (7 hari)"
+    else:
+        max_v = max(days_vols)
+        min_v = min(days_vols)
+        if max_v == min_v:
+            points = [0.45] * 7
+        else:
+            points = [
+                round(0.20 + ((v - min_v) / (max_v - min_v) * 0.65), 3)
+                for v in days_vols
+            ]
+        
+        prev_avg = sum(days_vols[:6]) / 6.0
+        if today_shipped > 0:
+            if prev_avg > 0:
+                pct = round(((today_shipped - prev_avg) / prev_avg) * 100, 1)
+                sign = "+" if pct >= 0 else ""
+                growth_label = f"+{today_shipped} kg transaksi pasar hari ini ({sign}{pct}% vs rerata)"
+            else:
+                growth_label = f"+{today_shipped} kg transaksi pasar hari ini"
+        else:
+            growth_label = f"Total {total_7d_shipped} kg transaksi pasar minggu ini"
+
+    # 4. Agregasi nama komoditas dinamis dari produk terbanyak di marketplace (KECUALIKAN LIVE BID)
+    products = db.query(models.Product).filter(models.Product.sales_mode != "live_bid").all()
+    stock_market = defaultdict(int)
+    listing_count = defaultdict(int)
+    for p in products:
+        c = extract_commodity_name(p.slug, p.name)
+        stock_market[c] += (p.stock or 0)
+        listing_count[c] += 1
+
+    shipped_vols = defaultdict(int)
+    for o in shipped_orders:
+        p = o.product
+        c = extract_commodity_name(p.slug if p else '', p.name if p else '')
+        shipped_vols[c] += (o.quantity or 0)
+
+    all_commodities = set(stock_market.keys()) | set(shipped_vols.keys())
+    ranked = []
+    for c in all_commodities:
+        score = (shipped_vols[c] * 10) + stock_market[c]
+        ranked.append((c, score, shipped_vols[c], stock_market[c]))
+
+    ranked.sort(key=lambda x: x[1], reverse=True)
+
+    # 5. Multi-line data untuk komoditas-komoditas yang sedang tren di pasar
+    palette = ["#2E7D32", "#FB8C00", "#1976D2"]
+    multi_lines = []
+    top_commodities = []
+
+    for idx, (c, score, shipped, stock) in enumerate(ranked[:3]):
+        color_hex = palette[idx % len(palette)]
+        if shipped > 0:
+            growth_text = f"+{shipped} kg terjual"
+        else:
+            growth_text = f"{stock} kg pasokan"
+        
+        top_commodities.append({
+            "name": c,
+            "growth": growth_text,
+            "is_positive": True,
+            "color": color_hex
+        })
+
+        # Hitung titik 7 hari untuk masing-masing komoditas dengan kurva terpisah yang jelas
+        line_points = []
+        base_levels = [0.58, 0.38, 0.20] # Level dasar terpisah agar kurva 3 buah tidak saling menumpuk
+        base_lvl = base_levels[idx % len(base_levels)]
+
+        for d_idx in range(7):
+            d = today - datetime.timedelta(days=6 - d_idx)
+            vol_c = sum(
+                o.quantity for o in shipped_orders 
+                if o.created_at and o.created_at.date() == d and extract_commodity_name(o.product.slug if o.product else '', o.product.name if o.product else '') == c
+            )
+            if shipped > 0 and vol_c > 0:
+                # Ada pesanan terkirim riil pada hari itu: kurva melonjak naik
+                bump = (vol_c / max(shipped, 1)) * 0.25
+                val_c = round(min(base_lvl + bump, 0.92), 3)
+            elif shipped > 0:
+                # Komoditas pernah terjual, tapi tidak pada hari ini — tetap di level dasar
+                val_c = round(base_lvl, 3)
+            else:
+                # Belum ada transaksi sama sekali — flat lurus sesuai logika backend
+                val_c = round(base_lvl, 3)
+            line_points.append(val_c)
+
+        multi_lines.append({
+            "name": c,
+            "color": color_hex,
+            "points": line_points,
+            "volume_label": growth_text
+        })
+
+    # Fallback aman jika belum ada komoditas di marketplace
+    if not top_commodities:
+        top_commodities = [
+            {"name": "NANAS", "growth": "Tren #1", "is_positive": True, "color": "#2E7D32"},
+            {"name": "MANGGA", "growth": "Tren #2", "is_positive": True, "color": "#FB8C00"},
+            {"name": "PISANG", "growth": "Tren #3", "is_positive": True, "color": "#1976D2"},
+        ]
+        multi_lines = [
+            {"name": "PASAR", "color": "#2E7D32", "points": [0.20]*7, "volume_label": "Belum ada transaksi"},
+        ]
+
+    return {
+        "points": points,
+        "days": days_labels,
+        "today_volume_kg": today_shipped,
+        "growth_label": growth_label,
+        "commodities": top_commodities[:3],
+        "lines": multi_lines
+    }
+
 @app.get("/api/petani-dashboard", dependencies=[Depends(auth.require_role(["petani", "umkm"]))])
 def petani_dashboard(
     db: Session = Depends(database.get_db),
@@ -375,6 +584,7 @@ def petani_dashboard(
             "sales_growth": "+12%",
             "active_orders": active_orders,
             "total_products": len(farmer_products),
+            "market_trend": calculate_market_trend(db),
             "recent_orders": [format_order(o) for o in recent_orders]
         }
     }
@@ -780,8 +990,11 @@ def get_harga_pasar(db: Session = Depends(database.get_db)):
     data = db.query(models.HargaPasar).all()
     response = []
     for item in data:
-        # Hitung analitik berdasarkan slug komoditas
-        products = db.query(models.Product).filter(models.Product.slug == item.slug).all()
+        # Hitung analitik berdasarkan slug komoditas (KECUALIKAN LIVE BID)
+        products = db.query(models.Product).filter(
+            models.Product.slug == item.slug,
+            models.Product.sales_mode != "live_bid"
+        ).all()
         
         total_volume = 0
         rata_rata_internal = 0
@@ -789,8 +1002,11 @@ def get_harga_pasar(db: Session = Depends(database.get_db)):
         if products:
             product_ids = [p.id for p in products]
             
-            # Hitung tren volume penjualan dari tabel Order
-            orders = db.query(models.Order).filter(models.Order.product_id.in_(product_ids)).all()
+            # Hitung tren volume penjualan dari tabel Order yang berstatus dikirim / selesai
+            orders = db.query(models.Order).filter(
+                models.Order.product_id.in_(product_ids),
+                models.Order.status.in_(["dikirim", "selesai", "completed"])
+            ).all()
             total_volume = sum(o.quantity for o in orders)
             
             # Hitung tren harga internal (harga rata-rata petani di aplikasi)
@@ -818,29 +1034,173 @@ def get_harga_pasar(db: Session = Depends(database.get_db)):
 
 @app.get("/api/v1/harga-pasar/{slug}")
 def get_tren_harga(slug: str, db: Session = Depends(database.get_db)):
-    """Mengembalikan data tren harga historis (dummy) untuk grafik berdasarkan slug"""
-    # Mencari komoditas berdasarkan slug
-    harga_db = db.query(models.HargaPasar).filter(models.HargaPasar.slug == slug).first()
-    
-    # Generate data grafik (dummy trend)
-    base_price = harga_db.harga if harga_db else 15000
-    
-    # Buat titik harga untuk 7 hari terakhir sebagai simulasi grafik tren
+    """Mengembalikan data tren harga historis komoditas berdasarkan slug dengan pencocokan cerdas"""
+    import re
+    import hashlib
+
+    # Kamus harga acuan pasar komoditas nasional & lokal untuk buah, sayur, dan pangan
+    COMMODITY_BENCHMARKS = {
+        # Pisang
+        "pisang": 15000,
+        "pisang ambon": 16000,
+        "pisang raja": 18000,
+        "pisang kepok": 14000,
+        "pisang mas": 15000,
+        "pisang tanduk": 17000,
+        "pisang raja sereh": 15000,
+        # Jeruk
+        "jeruk": 18000,
+        "jeruk bali": 22000,
+        "jeruk medan": 20000,
+        "jeruk siam": 16000,
+        "jeruk nipis": 15000,
+        "jeruk lemon": 24000,
+        # Mangga
+        "mangga": 18000,
+        "mangga arumanis": 22000,
+        "mangga gadung": 16000,
+        "mangga manalagi": 15000,
+        "mangga simanalagi": 17000,
+        # Buah Lainnya
+        "nanas": 12000,
+        "nanas madu": 15000,
+        "apel": 28000,
+        "anggur": 42000,
+        "alpukat": 25000,
+        "semangka": 8000,
+        "melon": 12000,
+        "pepaya": 7000,
+        "buah naga": 18000,
+        "stroberi": 35000,
+        "durian": 55000,
+        "salak": 12000,
+        "jambu": 12000,
+        # Sayuran & Pangan
+        "tomat": 14000,
+        "cabai": 45000,
+        "cabai rawit": 50000,
+        "cabai merah": 42000,
+        "bawang": 35000,
+        "bawang merah": 35000,
+        "bawang putih": 38000,
+        "kentang": 16000,
+        "wortel": 12000,
+        "jagung": 8000,
+        "bayam": 5000,
+        "kangkung": 5000,
+        "sawi": 6000,
+        "kubis": 8000,
+        "beras": 14500,
+    }
+
+    clean_q = re.sub(r'[^a-zA-Z0-9]', '', str(slug).lower())
+    normalized_slug = str(slug).lower().replace('_', ' ').replace('-', ' ').strip()
+    base_price = None
+    display_name = str(slug).replace('_', ' ').replace('-', ' ').title()
+
+    # 1. Cek apakah ada transaksi pesanan yang sudah terjual/dikirim untuk komoditas ini (KECUALIKAN LIVE BID)
+    matching_product_ids = []
+    matching_product_names = []
+    for p in db.query(models.Product).filter(models.Product.sales_mode != "live_bid").all():
+        clean_p_slug = re.sub(r'[^a-zA-Z0-9]', '', (p.slug or '').lower())
+        clean_p_name = re.sub(r'[^a-zA-Z0-9]', '', (p.name or '').lower())
+        if clean_q == clean_p_slug or clean_q in clean_p_slug or clean_p_slug in clean_q or clean_q in clean_p_name:
+            matching_product_ids.append(p.id)
+            matching_product_names.append(p.name)
+
+    shipped_orders = []
+    if matching_product_ids:
+        shipped_orders = db.query(models.Order).filter(
+            models.Order.product_id.in_(matching_product_ids),
+            models.Order.status.in_(["dikirim", "selesai", "completed"])
+        ).all()
+
+    if shipped_orders:
+        # Prioritas 1: Jika sudah ada transaksi pesanan riil yang terjual, gunakan harga riil
+        base_price = sum(o.total_price // max(o.quantity, 1) for o in shipped_orders) // len(shipped_orders)
+        if not display_name or display_name.lower() == slug.lower():
+            display_name = matching_product_names[0] if matching_product_names else display_name
+
+    # 2. Jika belum ada pesanan riil, cek di tabel HargaPasar
+    if base_price is None:
+        all_hp = db.query(models.HargaPasar).all()
+        for hp in all_hp:
+            clean_hp_slug = re.sub(r'[^a-zA-Z0-9]', '', (hp.slug or '').lower())
+            clean_hp_name = re.sub(r'[^a-zA-Z0-9]', '', (hp.komoditas or '').lower())
+            if clean_q == clean_hp_slug or clean_q in clean_hp_slug or clean_hp_slug in clean_q or clean_q in clean_hp_name:
+                base_price = hp.harga
+                display_name = hp.komoditas
+                break
+
+    # 3. Jika belum ditemukan, cocokkan dengan kamus komoditas acuan pasar wajar (buah & sayur)
+    if base_price is None:
+        # Cari pencocokan kunci terpanjang yang cocok
+        best_match = None
+        for key, price in COMMODITY_BENCHMARKS.items():
+            clean_key = re.sub(r'[^a-zA-Z0-9]', '', key)
+            if clean_key in clean_q or key in normalized_slug:
+                if best_match is None or len(key) > len(best_match[0]):
+                    best_match = (key, price)
+
+        if best_match:
+            base_price = best_match[1]
+        else:
+            # Standar default harga pasar panen pertanian wajar
+            base_price = 15000
+
+    # 4. Generate data kurva 7 hari
+    today = datetime.datetime.utcnow().date()
     trend_data = []
-    import random
-    for i in range(7):
-        target_date = datetime.datetime.now() - datetime.timedelta(days=6-i)
-        day_label = target_date.strftime("%d %b") # e.g. '28 Aug'
-        # Fluktuasi harga acak +/- 500 sampai 1500
-        fluctuation = random.choice([-1, 1]) * random.randint(5, 15) * 100
-        point_price = base_price + fluctuation
-        trend_data.append({"day": day_label, "price": point_price})
+    prices = []
+
+    if not shipped_orders:
+        # KETIKA BELUM ADA PRODUK TERJUAL (0 Penjualan):
+        # Kurva strip rata lurus horizontal pada harga acuan pasar wajar
+        for i in range(7):
+            target_date = today - datetime.timedelta(days=6 - i)
+            day_label = target_date.strftime("%d %b")
+            prices.append(base_price)
+            trend_data.append({"day": day_label, "price": base_price})
+        
+        min_p = base_price
+        max_p = base_price
+        trend_status = "Acuan Pasar (Stabil)"
+    else:
+        # JIKA SUDAH ADA TRANSAKSI PENJUALAN RIIL:
+        for i in range(7):
+            target_date = today - datetime.timedelta(days=6 - i)
+            day_label = target_date.strftime("%d %b")
+            day_orders = [o for o in shipped_orders if o.created_at and o.created_at.date() == target_date]
+            if day_orders:
+                day_avg = sum(o.total_price // max(o.quantity, 1) for o in day_orders) // len(day_orders)
+                point_price = day_avg
+            else:
+                point_price = base_price
+            prices.append(point_price)
+            trend_data.append({"day": day_label, "price": point_price})
+
+        min_p = min(prices)
+        max_p = max(prices)
+        if prices[-1] > prices[0]:
+            diff_pct = round(((prices[-1] - prices[0]) / prices[0]) * 100, 1)
+            trend_status = f"+{diff_pct}% (Naik)"
+        elif prices[-1] < prices[0]:
+            diff_pct = round(((prices[0] - prices[-1]) / prices[0]) * 100, 1)
+            trend_status = f"-{diff_pct}% (Turun)"
+        else:
+            trend_status = "Stabil"
 
     return {
         "status": "success", 
         "data": {
             "slug": slug,
+            "commodity_name": display_name,
             "current_price": base_price,
+            "min_price": min_p,
+            "max_price": max_p,
+            "trend_status": trend_status,
+            "has_sales": len(shipped_orders) > 0,
+            "has_data": True,
             "trend": trend_data
         }
     }

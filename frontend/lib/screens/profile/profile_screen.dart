@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../core/app_routes.dart';
 import '../../services/api_service.dart';
+
 import 'package:agrivo/screens/umkm/umkm_orders_screen.dart';
+import 'package:agrivo/screens/profile/petani_orders_screen.dart';
+
 import 'edit_profile_screen.dart';
 import 'financial_detail_screen.dart';
 import 'my_products_screen.dart';
@@ -86,7 +89,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     String activeOrders = _dashboardData?['active_orders']?.toString() ?? '0';
     String totalProducts = _dashboardData?['total_products']?.toString() ?? '0';
     String totalOrders = _dashboardData?['total_orders']?.toString() ?? '0';
-    final int saldo = (_profileData?['saldo'] as num?)?.toInt() ??
+    final int saldo =
+        (_profileData?['saldo'] as num?)?.toInt() ??
         (_dashboardData?['saldo'] as num?)?.toInt() ??
         0;
     final String formattedSaldo = _formatRupiah(saldo);
@@ -196,25 +200,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             const SizedBox(width: 16),
                             Expanded(
-                              child: _buildStatCard(activeOrders, 'Pesanan Aktif'),
+                              child: InkWell(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const UmkmOrdersScreen(),
+                                    ),
+                                  ).then((_) => _fetchData());
+                                },
+                                borderRadius: BorderRadius.circular(16),
+                                child: _buildStatCard(
+                                  activeOrders,
+                                  'Pesanan Aktif',
+                                ),
+                              ),
                             ),
                             const SizedBox(width: 16),
                             Expanded(
-                              child: _buildStatCard(totalOrders, 'Total Pesanan'),
+                              child: _buildStatCard(
+                                totalOrders,
+                                'Total Pesanan',
+                              ),
                             ),
                           ]
                         : [
                             // Tampilan khusus Petani: Total Omset, Pesanan Aktif, Total Produk
                             Expanded(
-                              child: _buildStatCard(formattedSales, 'Total Omset'),
+                              child: _buildStatCard(
+                                formattedSales,
+                                'Total Omset',
+                              ),
                             ),
                             const SizedBox(width: 16),
                             Expanded(
-                              child: _buildStatCard(activeOrders, 'Pesanan Aktif'),
+                              child: InkWell(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const PetaniOrdersScreen(),
+                                    ),
+                                  ).then((_) => _fetchData());
+                                },
+                                borderRadius: BorderRadius.circular(16),
+                                child: _buildStatCard(
+                                  activeOrders,
+                                  'Pesanan Aktif',
+                                ),
+                              ),
                             ),
                             const SizedBox(width: 16),
                             Expanded(
-                              child: _buildStatCard(totalProducts, 'Total Produk'),
+                              child: _buildStatCard(
+                                totalProducts,
+                                'Total Produk',
+                              ),
                             ),
                           ],
                   ),
@@ -223,12 +264,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // Menu Options: Berbeda untuk Petani vs UMKM
                   if (!isUmkm) ...[
                     _buildMenuOption(
+                      Icons.local_shipping_outlined,
+                      'Pesanan Masuk',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const PetaniOrdersScreen(),
+                          ),
+                        ).then((_) => _fetchData());
+                      },
+                    ),
+                    _buildMenuOption(
                       Icons.shopping_bag_outlined,
                       'Dagangan Saya',
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const MyProductsScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const MyProductsScreen(),
+                          ),
                         );
                       },
                     ),
@@ -238,7 +293,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const ScanHistoryScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const ScanHistoryScreen(),
+                          ),
                         );
                       },
                     ),
@@ -263,7 +320,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const UmkmOrdersScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const UmkmOrdersScreen(),
+                          ),
                         );
                       },
                     ),
@@ -274,9 +333,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const AuctionHistoryScreen(
-                              initialRole: 'umkm',
-                            ),
+                            builder: (_) =>
+                                const AuctionHistoryScreen(initialRole: 'umkm'),
                           ),
                         );
                       },

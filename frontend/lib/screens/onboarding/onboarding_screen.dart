@@ -18,7 +18,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     OnboardingPageData(
       title: 'Dari terbuang, jadi berharga',
       description: 'Buah yang tidak sempurna bukan berarti tidak berguna. Temukan peluang baru di balik setiap buah bersama AGRIVO.',
-      imagePath: 'assets/images/apel1.png',
+      imagePath: 'assets/images/apel2.png',
       isFirstPage: true,
     ),
     OnboardingPageData(
@@ -30,7 +30,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     OnboardingPageData(
       title: 'Pasar & Lelang Tani',
       description: 'Jual langsung hasil panenmu atau buat lelang live untuk penawaran terbaik dari pembeli.',
-      imagePath: 'assets/images/marketonboard.png',
+      imagePath: 'assets/images/marketonboard2.png',
       isFirstPage: false,
     ),
   ];
@@ -211,13 +211,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    // Base Image
+                    // Base Image — contain agar gambar terpusat dan tidak terpotong
                     Positioned.fill(
-                      child: Image.asset(pageData.imagePath, fit: BoxFit.cover),
+                      child: ColoredBox(
+                        color: const Color(0xFFF7FAF5), // background hijau pucat lembut
+                        child: Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Image.asset(
+                            pageData.imagePath,
+                            fit: BoxFit.contain,
+                            alignment: Alignment.center,
+                          ),
+                        ),
+                      ),
                     ),
 
                     // Custom Overlay Badges mimicking the screenshots
-                    if (pageData.imagePath.contains('apel1.png')) ...[
+                    if (pageData.imagePath.contains('apel2.png')) ...[
                       // "AI ANALYSIS ACTIVE" badge on top right
                       Positioned(
                         top: 16,
@@ -384,7 +394,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       ),
                     ],
 
-                    if (pageData.imagePath.contains('marketonboard.png')) ...[
+                    if (pageData.imagePath.contains('marketonboard2.png')) ...[
                       // "HARGA PASAR" overlay card on bottom center
                       Positioned(
                         bottom: 16,

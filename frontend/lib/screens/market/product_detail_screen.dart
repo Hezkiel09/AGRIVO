@@ -26,6 +26,19 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     return "${ApiService.baseUrl}/$imagePath";
   }
 
+  String _cleanDisplayName(dynamic raw, {String fallback = 'Petani Subur Jaya'}) {
+    if (raw == null) return fallback;
+    String s = raw.toString().trim();
+    if (s.isEmpty) return fallback;
+    if (s.contains('@')) {
+      s = s.split('@')[0];
+      s = s.replaceAll(RegExp(r'[._\-]+'), ' ');
+      s = s.replaceAllMapped(RegExp(r'([a-zA-Z]+)(\d+)'), (m) => '${m[1]} ${m[2]}');
+    }
+    final words = s.split(' ').where((w) => w.isNotEmpty).map((w) => w[0].toUpperCase() + w.substring(1).toLowerCase());
+    return words.isEmpty ? fallback : words.join(' ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final product = widget.product;
@@ -40,7 +53,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final String description = product['description'] != null && product['description'].toString().isNotEmpty
         ? product['description']
         : 'Hasil panen segar langsung dipetik dari kebun petani mitra Agrivo. Diproses dengan standar mutu terbaik, bebas pestisida berlebih, dan terverifikasi grade kualitasnya menggunakan kecerdasan buatan computer vision Agrivo.';
-    final String sellerName = product['seller_name'] ?? product['farm_name'] ?? 'Petani Subur Jaya';
+    final String rawSeller = product['seller_name'] ?? product['farm_name'] ?? 'Petani Subur Jaya';
+    final String sellerName = _cleanDisplayName(rawSeller, fallback: 'Petani Subur Jaya');
     final String location = product['location'] ?? 'Depok, Jawa Barat';
     final bool isLiveBid = product['sales_mode'] == 'live_bid';
     bool isExpired = false;

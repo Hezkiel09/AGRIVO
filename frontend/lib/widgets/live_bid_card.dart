@@ -43,13 +43,27 @@ class LiveBidCard extends StatelessWidget {
     }
   }
 
+  String _cleanDisplayName(dynamic raw, {String fallback = 'Petani Subur Jaya'}) {
+    if (raw == null) return fallback;
+    String s = raw.toString().trim();
+    if (s.isEmpty) return fallback;
+    if (s.contains('@')) {
+      s = s.split('@')[0];
+      s = s.replaceAll(RegExp(r'[._\-]+'), ' ');
+      s = s.replaceAllMapped(RegExp(r'([a-zA-Z]+)(\d+)'), (m) => '${m[1]} ${m[2]}');
+    }
+    final words = s.split(' ').where((w) => w.isNotEmpty).map((w) => w[0].toUpperCase() + w.substring(1).toLowerCase());
+    return words.isEmpty ? fallback : words.join(' ');
+  }
+
   @override
   Widget build(BuildContext context) {
     String name = product['name'] ?? 'Hasil Panen';
     String imagePath = product['image_path'] ?? '';
     String grade = product['grade'] ?? 'Grade A';
     String price = product['price']?.toString() ?? '0';
-    String sellerName = product['seller_name'] ?? product['farm_name'] ?? 'Petani Subur Jaya';
+    String rawSeller = product['seller_name'] ?? product['farm_name'] ?? 'Petani Subur Jaya';
+    String sellerName = _cleanDisplayName(rawSeller, fallback: 'Petani Subur Jaya');
     String weight = product['unit'] != null ? '${product['stock'] ?? 50}${product['unit']}' : '50kg';
     bool expired = _isExpired(product['expiry_time']);
     String timerStr = _formatTimeLeft(product['expiry_time']);
