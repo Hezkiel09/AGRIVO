@@ -503,15 +503,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               // Main Action Button (Beli Sekarang or Tawar Lelang)
               Expanded(
                 child: ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     if (isLiveBid) {
                       _showBidDialog(context, name, priceNum);
                     } else {
-                      _cartService.addToCart(product, quantity: _quantity);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const CartScreen()),
-                      );
+                      _showDirectBuyConfirmation(product, _quantity, priceNum);
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -563,6 +559,123 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  String _formatRupiah(int number) {
+    String str = number.toString();
+    String result = '';
+    int count = 0;
+    for (int i = str.length - 1; i >= 0; i--) {
+      count++;
+      result = str[i] + result;
+      if (count % 3 == 0 && i != 0) {
+        result = '.$result';
+      }
+    }
+    return 'Rp $result';
+  }
+
+  Future<void> _showDirectBuyConfirmation(Map<String, dynamic> product, int quantity, int price) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(child: CircularProgressIndicator()),
+    );
+    final profile = await ApiService.getProfile();
+    if (context.mounted) Navigator.pop(context);
+
+    if (profile == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gagal mengambil data profil')));
+      }
+      return;
+    }
+    int saldo = profile['saldo'] ?? 0;
+    int totalPrice = price * quantity;
+    bool isSufficient = saldo >= totalPrice;
+
+    if (!context.mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Konfirmasi Pembelian', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Detail Pembelian:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(product['name'] ?? 'Produk', style: const TextStyle(fontSize: 14)),
+                Text('${quantity}x', style: const TextStyle(fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Harga Total:', style: TextStyle(fontSize: 14)),
+                Text(_formatRupiah(totalPrice), style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1B4F1E))),
+              ],
+            ),
+            const Divider(height: 24),
+            const Text('Metode Pembayaran:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Saldo Anda:'),
+                Text(_formatRupiah(saldo), style: TextStyle(color: isSufficient ? const Color(0xFF1B4F1E) : Colors.red, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            if (!isSufficient)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text('Saldo tidak mencukupi, silakan top up di menu Profil.', style: TextStyle(color: Colors.red, fontSize: 12)),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: isSufficient
+                ? () async {
+                    Navigator.pop(ctx);
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (ctx2) => const Center(child: CircularProgressIndicator()),
+                    );
+                    final result = await ApiService.buyDirect(product['id'], quantity);
+                    if (context.mounted) Navigator.pop(context);
+                    if (result['success']) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(result['message'] ?? 'Berhasil membeli produk!'), backgroundColor: const Color(0xFF1B4F1E)),
+                        );
+                        Navigator.pop(context); // Go back to market
+                      }
+                    } else {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(result['message'] ?? 'Gagal membeli produk'), backgroundColor: Colors.red),
+                        );
+                      }
+                    }
+                  }
+                : null,
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1B4F1E)),
+            child: const Text('Bayar dengan Saldo', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }

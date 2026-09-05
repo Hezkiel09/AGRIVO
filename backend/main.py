@@ -147,6 +147,13 @@ class UserProfileUpdate(BaseModel):
 class ChatMessageCreate(BaseModel):
     content: str
 
+class TopupRequest(BaseModel):
+    amount: int
+
+class BuyDirectRequest(BaseModel):
+    product_id: int
+    quantity: int
+
 # --- ROUTES: AUTHENTICATION ---
 @app.post("/api/check-email")
 def check_email(data: CheckEmail, db: Session = Depends(database.get_db)):
@@ -203,6 +210,7 @@ def get_profile(
             "full_name": current_user.full_name,
             "farm_name": current_user.farm_name,
             "location": current_user.location,
+            "saldo": current_user.saldo,
         }
     }
 
@@ -220,6 +228,66 @@ def update_profile(
     return {
         "status": "success",
         "message": "Profil berhasil diperbarui"
+    }
+
+@app.post("/api/profile/topup")
+def topup_saldo(
+    req: TopupRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    if req.amount <= 0:
+        raise HTTPException(status_code=400, detail="Nominal top up tidak valid")
+    
+    current_user.saldo += req.amount
+    db.commit()
+    db.refresh(current_user)
+    
+    return {
+        "status": "success",
+        "message": f"Berhasil top up Rp {req.amount}",
+        "saldo": current_user.saldo
+    }
+
+@app.post("/api/orders/buy_direct")
+def buy_direct(
+    req: BuyDirectRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    if req.quantity <= 0:
+        raise HTTPException(status_code=400, detail="Kuantitas tidak valid")
+        
+    product = db.query(models.Product).filter(models.Product.id == req.product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Produk tidak ditemukan")
+        
+    price_val = parse_price_to_int(product.price)
+    total_price = price_val * req.quantity
+    
+    if current_user.saldo < total_price:
+        raise HTTPException(status_code=400, detail="Saldo tidak cukup")
+        
+    if product.stock < req.quantity:
+        raise HTTPException(status_code=400, detail="Stok tidak mencukupi")
+        
+    current_user.saldo -= total_price
+    product.stock -= req.quantity
+    
+    new_order = models.Order(
+        product_id=product.id,
+        buyer_id=current_user.id,
+        quantity=req.quantity,
+        total_price=str(total_price),
+        status="pending"
+    )
+    db.add(new_order)
+    db.commit()
+    
+    return {
+        "status": "success",
+        "message": "Pembelian berhasil",
+        "sisa_saldo": current_user.saldo
     }
 
 # --- ROUTES: API ---
@@ -257,6 +325,7 @@ def petani_dashboard(
             "role": current_user.role,
             "total_sales": total_sales,
             "formatted_sales": formatted_sales,
+            "saldo": current_user.saldo,
             "sales_growth": "+12%",
             "active_orders": active_orders,
             "total_products": len(farmer_products),

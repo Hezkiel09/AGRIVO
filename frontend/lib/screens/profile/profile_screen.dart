@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/app_routes.dart';
 import '../../services/api_service.dart';
 import 'edit_profile_screen.dart';
+import 'financial_detail_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -151,9 +152,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildStatCard(formattedSales, 'Total Omset'),
-                      _buildStatCard(activeOrders, 'Pesanan Aktif'),
-                      _buildStatCard(totalProducts, 'Total Produk'),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => FinancialDetailScreen(
+                                    initialProfileData: _profileData!),
+                              ),
+                            ).then((_) => _fetchData());
+                          },
+                          borderRadius: BorderRadius.circular(16),
+                          child: _buildStatCard(formattedSales, 'Total Omset & Saldo'),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(child: _buildStatCard(activeOrders, 'Pesanan Aktif')),
+                      const SizedBox(width: 16),
+                      Expanded(child: _buildStatCard(totalProducts, 'Total Produk')),
                     ],
                   ),
                   const SizedBox(height: 24),

@@ -261,7 +261,52 @@ class ApiService {
       }
     } catch (e) {
       print("Error Upload Foto: $e");
-      return null;
+    }
+    return null;
+  }
+
+  // --- TRANSACTIONS API ---
+  static Future<bool> topUpSaldo(int amount) async {
+    final url = Uri.parse('$baseUrl/api/profile/topup');
+    final token = await LocalStorage.getToken();
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'amount': amount}),
+      ).timeout(const Duration(seconds: 10));
+      return response.statusCode == 200;
+    } catch (e) {
+      print("Error Topup: $e");
+    }
+    return false;
+  }
+
+  static Future<Map<String, dynamic>> buyDirect(int productId, int quantity) async {
+    final url = Uri.parse('$baseUrl/api/orders/buy_direct');
+    final token = await LocalStorage.getToken();
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'product_id': productId, 'quantity': quantity}),
+      ).timeout(const Duration(seconds: 10));
+      
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {'success': true, 'message': data['message'] ?? 'Berhasil'};
+      } else {
+        return {'success': false, 'message': data['detail'] ?? 'Terjadi kesalahan'};
+      }
+    } catch (e) {
+      print("Error Buy Direct: $e");
+      return {'success': false, 'message': 'Gagal menghubungi server'};
     }
   }
 
