@@ -3,17 +3,21 @@ import 'package:flutter/material.dart';
 class CustomBottomNavBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
+  final String? role;
 
   const CustomBottomNavBar({
     super.key,
     required this.currentIndex,
     required this.onTap,
+    this.role,
   });
 
   @override
   Widget build(BuildContext context) {
     const Color activeColor = Color(0xFF1B4F1E);
     final Color inactiveColor = Colors.grey.shade500;
+    final bool isUmkm = role?.toLowerCase() == 'umkm';
+    final String centerLabel = isUmkm ? 'Pesanan' : 'Scan';
 
     return Container(
       color: Colors.transparent,
@@ -57,7 +61,7 @@ class CustomBottomNavBar extends StatelessWidget {
                     activeColor: activeColor,
                     inactiveColor: inactiveColor,
                   ),
-                  // Space placeholder for elevated Scan button
+                  // Space placeholder for elevated Center button
                   GestureDetector(
                     onTap: () => onTap(2),
                     behavior: HitTestBehavior.opaque,
@@ -67,7 +71,7 @@ class CustomBottomNavBar extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           Text(
-                            'Scan',
+                            centerLabel,
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
@@ -98,7 +102,7 @@ class CustomBottomNavBar extends StatelessWidget {
             ),
           ),
 
-          // 2. Elevated Center Scan FAB Button
+          // 2. Elevated Center FAB Button
           Positioned(
             bottom: 34,
             child: GestureDetector(
@@ -117,11 +121,17 @@ class CustomBottomNavBar extends StatelessWidget {
                     ),
                   ],
                 ),
-                padding: const EdgeInsets.all(13),
-                child: Image.asset(
-                  'assets/icon/Camerascan.png',
-                  color: Colors.white,
-                ),
+                padding: EdgeInsets.all(isUmkm ? 10 : 13),
+                child: isUmkm
+                    ? const Icon(
+                        Icons.receipt_long_outlined,
+                        color: Colors.white,
+                        size: 30,
+                      )
+                    : Image.asset(
+                        'assets/icon/Camerascan.png',
+                        color: Colors.white,
+                      ),
               ),
             ),
           ),

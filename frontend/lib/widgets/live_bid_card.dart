@@ -19,12 +19,22 @@ class LiveBidCard extends StatelessWidget {
     return "${ApiService.baseUrl}/$imagePath";
   }
 
+  bool _isExpired(String? expiryTimeIso) {
+    if (expiryTimeIso == null) return false;
+    try {
+      DateTime expiry = DateTime.parse(expiryTimeIso);
+      return expiry.isBefore(DateTime.now());
+    } catch (_) {
+      return false;
+    }
+  }
+
   String _formatTimeLeft(String? expiryTimeIso) {
     if (expiryTimeIso == null) return "1h 15m left";
     try {
       DateTime expiry = DateTime.parse(expiryTimeIso);
       Duration diff = expiry.difference(DateTime.now());
-      if (diff.isNegative) return "Ended";
+      if (diff.isNegative) return "Selesai";
       int hours = diff.inHours;
       int minutes = diff.inMinutes.remainder(60);
       return "${hours}h ${minutes}m left";
@@ -41,6 +51,7 @@ class LiveBidCard extends StatelessWidget {
     String price = product['price']?.toString() ?? '0';
     String sellerName = product['seller_name'] ?? product['farm_name'] ?? 'Petani Subur Jaya';
     String weight = product['unit'] != null ? '${product['stock'] ?? 50}${product['unit']}' : '50kg';
+    bool expired = _isExpired(product['expiry_time']);
     String timerStr = _formatTimeLeft(product['expiry_time']);
 
     return GestureDetector(
@@ -131,50 +142,74 @@ class LiveBidCard extends StatelessWidget {
                   bottom: 8,
                   left: 8,
                   right: 8,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Timer Pill
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.65),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          timerStr,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w600,
+                  child: expired
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.7),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                        ),
-                      ),
-                      // Live Pill
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE53935),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: const [
-                            Icon(Icons.circle, color: Colors.white, size: 6),
-                            SizedBox(width: 3),
-                            Text(
-                              'Live',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.bold,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              Icon(Icons.timer_off_outlined, color: Colors.white70, size: 12),
+                              SizedBox(width: 4),
+                              Text(
+                                'Live Bid Selesai',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // Timer Pill
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.65),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                timerStr,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            // Live Pill
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE53935),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: const [
+                                  Icon(Icons.circle, color: Colors.white, size: 6),
+                                  SizedBox(width: 3),
+                                  Text(
+                                    'Live',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         ),
-                      ),
-                    ],
-                  ),
                 ),
               ],
             ),
@@ -247,26 +282,37 @@ class LiveBidCard extends StatelessWidget {
                         ),
                       ),
                       GestureDetector(
-                        onTap: onBidTap ?? () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ProductDetailScreen(product: product),
-                            ),
-                          );
-                        },
+                        onTap: expired
+                            ? () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Lelang Live Bid untuk produk ini sudah selesai.'),
+                                    backgroundColor: Color(0xFF64748B),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              }
+                            : (onBidTap ??
+                                () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ProductDetailScreen(product: product),
+                                    ),
+                                  );
+                                }),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFE8F5E9),
+                            color: expired ? const Color(0xFFE2E8F0) : const Color(0xFFE8F5E9),
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: const Text(
-                            'Bid Now',
+                          child: Text(
+                            expired ? 'Selesai' : 'Bid Now',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF1B4F1E),
+                              color: expired ? const Color(0xFF64748B) : const Color(0xFF1B4F1E),
                             ),
                           ),
                         ),

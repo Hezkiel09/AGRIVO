@@ -8,14 +8,16 @@ import 'package:fl_chart/fl_chart.dart';
 
 class CreateProductScreen extends StatefulWidget {
   final String salesMode;
-  final XFile imageFile;
+  final XFile? imageFile;
   final String grade;
+  final String? commodity;
 
   const CreateProductScreen({
     super.key,
-    required this.salesMode,
-    required this.imageFile,
-    required this.grade,
+    this.salesMode = 'market',
+    this.imageFile,
+    this.grade = 'Grade A',
+    this.commodity,
   });
 
   @override
@@ -30,6 +32,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
   final _expiryHoursController = TextEditingController(text: '6');
   String _category = 'Sayuran';
 
+  XFile? _currentImageFile;
   bool _isLoading = false;
   List<String> _slugs = [];
   String? _selectedSlug;
@@ -38,6 +41,10 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
   @override
   void initState() {
     super.initState();
+    _currentImageFile = widget.imageFile;
+    if (widget.commodity != null && widget.commodity!.isNotEmpty) {
+      _nameController.text = '${widget.commodity!} ${widget.grade}';
+    }
     _fetchSlugs();
   }
 
@@ -46,6 +53,20 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
     if (mounted) {
       setState(() {
         _slugs = slugs;
+        if (widget.commodity != null && widget.commodity!.isNotEmpty && _selectedSlug == null) {
+          final norm = widget.commodity!.toLowerCase().trim();
+          final match = slugs.firstWhere(
+            (s) {
+              final sn = s.toLowerCase();
+              return sn == norm || norm.contains(sn) || sn.contains(norm);
+            },
+            orElse: () => '',
+          );
+          if (match.isNotEmpty) {
+            _selectedSlug = match;
+            _fetchTrendHarga(match);
+          }
+        }
       });
     }
   }
@@ -59,6 +80,16 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
     }
   }
 
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    if (picked != null) {
+      setState(() {
+        _currentImageFile = picked;
+      });
+    }
+  }
+
   Future<void> _submitProduct() async {
     if (_nameController.text.isEmpty ||
         _priceController.text.isEmpty ||
@@ -68,6 +99,15 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
           content: Text(
             'Harap lengkapi nama produk, harga, dan pilih komoditas (slug).',
           ),
+        ),
+      );
+      return;
+    }
+
+    if (_currentImageFile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Harap sertakan foto produk dengan mengetuk area foto.'),
         ),
       );
       return;
@@ -90,7 +130,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
           ? int.tryParse(_expiryHoursController.text)
           : null,
       unit: 'kg',
-      imageFile: widget.imageFile,
+      imageFile: _currentImageFile!,
     );
 
     if (mounted) {
@@ -241,17 +281,36 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Preview Image
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: SizedBox(
-                height: 200,
-                width: double.infinity,
-                child: kIsWeb
-                    ? Image.network(widget.imageFile.path, fit: BoxFit.cover)
-                    : Image.file(
-                        File(widget.imageFile.path),
-                        fit: BoxFit.cover,
-                      ),
+            GestureDetector(
+              onTap: _pickImage,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  height: 200,
+                  width: double.infinity,
+                  color: Colors.grey[200],
+                  child: _currentImageFile != null
+                      ? (kIsWeb
+                          ? Image.network(_currentImageFile!.path, fit: BoxFit.cover)
+                          : Image.file(
+                              File(_currentImageFile!.path),
+                              fit: BoxFit.cover,
+                            ))
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.add_a_photo, size: 48, color: Colors.grey[600]),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Ketuk untuk pilih foto produk',
+                              style: TextStyle(
+                                color: Colors.grey[700],
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
               ),
             ),
             const SizedBox(height: 16),

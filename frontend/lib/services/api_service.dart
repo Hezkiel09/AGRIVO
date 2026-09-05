@@ -285,17 +285,18 @@ class ApiService {
     return false;
   }
 
-  static Future<Map<String, dynamic>> buyDirect(int productId, int quantity) async {
+  static Future<Map<String, dynamic>> buyDirect(dynamic productId, int quantity) async {
     final url = Uri.parse('$baseUrl/api/orders/buy_direct');
     final token = await LocalStorage.getToken();
     try {
+      final id = productId is int ? productId : int.tryParse(productId.toString()) ?? 0;
       final response = await http.post(
         url,
         headers: {
           'Content-Type': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token',
         },
-        body: jsonEncode({'product_id': productId, 'quantity': quantity}),
+        body: jsonEncode({'product_id': id, 'quantity': quantity}),
       ).timeout(const Duration(seconds: 10));
       
       final data = jsonDecode(response.body);
@@ -687,6 +688,27 @@ class ApiService {
     return null;
   }
 
+  static Future<Map<String, dynamic>?> getUmkmDashboard() async {
+    final url = Uri.parse('$baseUrl/api/umkm-dashboard');
+    final token = await LocalStorage.getToken();
+    if (token == null) return null;
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['data'];
+      }
+    } catch (e) {
+      print("Error Fetch UMKM Dashboard: $e");
+    }
+    return null;
+  }
+
   static Future<bool> createOrder({
     required int productId,
     required int quantity,
@@ -758,5 +780,178 @@ class ApiService {
       print("Error Update Order Status: $e");
       return false;
     }
+  }
+
+  // --- LIVE BIDS API ---
+  static Future<Map<String, dynamic>> createBid(int productId, int bidAmount) async {
+    final url = Uri.parse('$baseUrl/api/bids');
+    final token = await LocalStorage.getToken();
+    if (token == null) {
+      return {'success': false, 'message': 'Silakan login terlebih dahulu'};
+    }
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'product_id': productId,
+          'bid_amount': bidAmount,
+        }),
+      ).timeout(const Duration(seconds: 10));
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {'success': true, 'message': data['message'] ?? 'Tawaran berhasil diajukan!'};
+      } else {
+        return {'success': false, 'message': data['detail'] ?? 'Gagal mengajukan tawaran'};
+      }
+    } catch (e) {
+      print("Error Create Bid: $e");
+      return {'success': false, 'message': 'Koneksi gagal: $e'};
+    }
+  }
+
+  static Future<List<dynamic>> getMyBids() async {
+    final url = Uri.parse('$baseUrl/api/bids/my');
+    final token = await LocalStorage.getToken();
+    if (token == null) return [];
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['data'] ?? [];
+      }
+    } catch (e) {
+      print("Error Fetch My Bids: $e");
+    }
+    return [];
+  }
+
+  static Future<List<dynamic>> getFarmerLiveBids() async {
+    final url = Uri.parse('$baseUrl/api/farmer/live-bids');
+    final token = await LocalStorage.getToken();
+    if (token == null) return [];
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['data'] ?? [];
+      }
+    } catch (e) {
+      print("Error Fetch Farmer Live Bids: $e");
+    }
+    return [];
+  }
+
+  static Future<bool> updateBidStatus(int bidId, String status) async {
+    final url = Uri.parse('$baseUrl/api/bids/$bidId/status');
+    final token = await LocalStorage.getToken();
+    if (token == null) return false;
+
+    try {
+      final response = await http.put(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'status': status}),
+      ).timeout(const Duration(seconds: 10));
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print("Error Update Bid Status: $e");
+      return false;
+    }
+  }
+
+  static Future<bool> extendLiveBid(int productId, int hours) async {
+    final url = Uri.parse('$baseUrl/api/products/$productId/extend-live-bid');
+    final token = await LocalStorage.getToken();
+    if (token == null) return false;
+
+    try {
+      final response = await http.put(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'hours': hours}),
+      ).timeout(const Duration(seconds: 10));
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print("Error Extend Live Bid: $e");
+      return false;
+    }
+  }
+
+  // --- SCAN HISTORY API ---
+  static Future<bool> saveScanHistory({
+    required String commodity,
+    required String grade,
+    dynamic confidence,
+    String? imagePath,
+  }) async {
+    final url = Uri.parse('$baseUrl/api/scan-history');
+    final token = await LocalStorage.getToken();
+    if (token == null) return false;
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'commodity': commodity,
+          'grade': grade,
+          'confidence': confidence?.toString(),
+          'image_path': imagePath,
+        }),
+      ).timeout(const Duration(seconds: 10));
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print("Error Save Scan History: $e");
+      return false;
+    }
+  }
+
+  static Future<List<dynamic>> getScanHistories() async {
+    final url = Uri.parse('$baseUrl/api/scan-history');
+    final token = await LocalStorage.getToken();
+    if (token == null) return [];
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['data'] ?? [];
+      }
+    } catch (e) {
+      print("Error Fetch Scan Histories: $e");
+    }
+    return [];
   }
 }
