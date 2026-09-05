@@ -13,7 +13,7 @@ class User(Base):
     full_name = Column(String(255), nullable=True)
     farm_name = Column(String(255), nullable=True)
     location = Column(String(255), nullable=True)
-    saldo = Column(Integer, default=0, nullable=False)
+    saldo = Column(Integer, default=0, nullable=True)
     
     # Relationship with other tables
     products = relationship("Product", back_populates="owner")
