@@ -43,6 +43,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final String sellerName = product['seller_name'] ?? product['farm_name'] ?? 'Petani Subur Jaya';
     final String location = product['location'] ?? 'Depok, Jawa Barat';
     final bool isLiveBid = product['sales_mode'] == 'live_bid';
+    bool isExpired = false;
+    if (isLiveBid && product['expiry_time'] != null) {
+      try {
+        isExpired = DateTime.parse(product['expiry_time']).isBefore(DateTime.now());
+      } catch (_) {}
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFA),
@@ -211,6 +217,33 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (isLiveBid && isExpired)
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF1F2),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFFECDD3)),
+                      ),
+                      child: Row(
+                        children: const [
+                          Icon(Icons.timer_off_outlined, color: Color(0xFFE11D48), size: 18),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Lelang Live Bid untuk produk ini telah selesai.',
+                              style: TextStyle(
+                                color: Color(0xFF9F1239),
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -503,22 +536,28 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               // Main Action Button (Beli Sekarang or Tawar Lelang)
               Expanded(
                 child: ElevatedButton(
-                  onPressed: () async {
-                    if (isLiveBid) {
-                      _showBidDialog(context, name, priceNum);
-                    } else {
-                      _showDirectBuyConfirmation(product, _quantity, priceNum);
-                    }
-                  },
+                  onPressed: (isLiveBid && isExpired)
+                      ? null
+                      : () async {
+                          if (isLiveBid) {
+                            _showBidDialog(context, name, priceNum);
+                          } else {
+                            _showDirectBuyConfirmation(product, _quantity, priceNum);
+                          }
+                        },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1B4F1E),
+                    backgroundColor: (isLiveBid && isExpired) ? const Color(0xFF94A3B8) : const Color(0xFF1B4F1E),
                     foregroundColor: Colors.white,
+                    disabledBackgroundColor: const Color(0xFFCBD5E1),
+                    disabledForegroundColor: const Color(0xFF64748B),
                     minimumSize: const Size(double.infinity, 48),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
                   ),
                   child: Text(
-                    isLiveBid ? 'Tawar Sekarang (Bid)' : 'Beli Langsung',
+                    isLiveBid
+                        ? (isExpired ? 'Live Bid Selesai' : 'Tawar Sekarang (Bid)')
+                        : 'Beli Langsung',
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
@@ -682,48 +721,87 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   void _showBidDialog(BuildContext context, String productName, int currentPrice) {
     final TextEditingController bidController = TextEditingController(text: '${currentPrice + 10000}');
+    bool isSubmitting = false;
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Ajukan Tawaran $productName'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Tawaran saat ini: Rp $currentPrice'),
-            const SizedBox(height: 12),
-            TextField(
-              controller: bidController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: 'Nominal Tawaran Anda (Rp)',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                prefixText: 'Rp ',
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Ajukan Tawaran $productName', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Harga dasar / tawaran saat ini:', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+              Text(
+                'Rp $currentPrice',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1B4F1E)),
               ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: bidController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Nominal Tawaran Anda',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  prefixText: 'Rp ',
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Tawaran Anda akan masuk ke daftar penawaran petani dan dapat disetujui selama live bid berlangsung.',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      final int bidAmount = int.tryParse(bidController.text.trim().replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+                      if (bidAmount <= 0) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Masukkan nominal tawaran yang valid!'), backgroundColor: Colors.red),
+                        );
+                        return;
+                      }
+                      if (bidAmount <= currentPrice) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Tawaran harus lebih tinggi dari harga saat ini!'), backgroundColor: Colors.red),
+                        );
+                        return;
+                      }
+
+                      setDialogState(() => isSubmitting = true);
+                      final productId = widget.product['id'] is int ? widget.product['id'] : int.tryParse(widget.product['id'].toString()) ?? 0;
+                      final res = await ApiService.createBid(productId, bidAmount);
+                      setDialogState(() => isSubmitting = false);
+
+                      if (context.mounted) {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(res['message'] ?? 'Tawaran diajukan'),
+                            backgroundColor: res['success'] == true ? const Color(0xFF1B4F1E) : Colors.red,
+                          ),
+                        );
+                      }
+                    },
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1B4F1E)),
+              child: isSubmitting
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text('Kirim Tawaran', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Tawaran sebesar Rp ${bidController.text} berhasil diajukan!'),
-                  backgroundColor: const Color(0xFF1B4F1E),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1B4F1E)),
-            child: const Text('Kirim Tawaran', style: TextStyle(color: Colors.white)),
-          ),
-        ],
       ),
     );
   }
 }
+
