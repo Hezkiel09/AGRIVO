@@ -6,9 +6,39 @@ import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:agrivo/core/local_storage.dart';
 
+class _TunnelClient extends http.BaseClient {
+  final http.Client _inner = http.Client();
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    request.headers['Bypass-Tunnel-Reminder'] = 'true';
+    request.headers['bypass-tunnel-reminder'] = 'true';
+    request.headers['User-Agent'] = 'agrivo-mobile';
+    return _inner.send(request);
+  }
+}
+
 class ApiService {
-  // Gunakan 127.0.0.1 untuk Web/Desktop, dan 10.0.2.2 untuk Emulator Android
+  /// Base URL custom:
+  /// Sudah dikonfigurasi ke LocalTunnel: https://cold-planes-smell.loca.lt
+  static const String customBaseUrl = "https://cold-planes-smell.loca.lt";
+
+  static final http.Client _client = _TunnelClient();
+
+  static const Map<String, String> tunnelHeaders = {
+    'Bypass-Tunnel-Reminder': 'true',
+    'User-Agent': 'agrivo-mobile',
+  };
+
   static String get baseUrl {
+    // 1. Prioritas: jika dioper via argumen build `flutter build apk --dart-define=API_BASE_URL=https://...`
+    const String envUrl = String.fromEnvironment('API_BASE_URL');
+    if (envUrl.isNotEmpty) return envUrl;
+
+    // 2. Jika diisi manual di customBaseUrl di atas
+    if (customBaseUrl.isNotEmpty) return customBaseUrl;
+
+    // 3. Otomatis: Web/Desktop vs Emulator Android
     if (kIsWeb) return "http://127.0.0.1:8000";
     return "http://10.0.2.2:8000";
   }
@@ -26,7 +56,7 @@ class ApiService {
   ) async {
     final url = Uri.parse('$baseUrl/register');
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
@@ -53,7 +83,7 @@ class ApiService {
   static Future<bool> login(String username, String password) async {
     final url = Uri.parse('$baseUrl/login');
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'username': username, 'password': password}),
@@ -84,7 +114,7 @@ class ApiService {
     if (token == null) return null;
 
     try {
-      final response = await http.get(
+      final response = await _client.get(
         url,
         headers: {'Authorization': 'Bearer $token'},
       ).timeout(const Duration(seconds: 10));
@@ -105,7 +135,7 @@ class ApiService {
     if (token == null) return false;
 
     try {
-      final response = await http.put(
+      final response = await _client.put(
         url,
         headers: {
           'Content-Type': 'application/json',
@@ -128,7 +158,7 @@ class ApiService {
   static Future<bool> checkEmail(String email) async {
     final url = Uri.parse('$baseUrl/api/check-email');
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email}),
@@ -161,7 +191,7 @@ class ApiService {
       );
 
       print("Sedang memproses AI, mohon tunggu...");
-      var streamedResponse = await request.send();
+      var streamedResponse = await _client.send(request);
       var response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
@@ -270,7 +300,7 @@ class ApiService {
     final url = Uri.parse('$baseUrl/api/profile/topup');
     final token = await LocalStorage.getToken();
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: {
           'Content-Type': 'application/json',
@@ -290,7 +320,7 @@ class ApiService {
     final token = await LocalStorage.getToken();
     try {
       final id = productId is int ? productId : int.tryParse(productId.toString()) ?? 0;
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: {
           'Content-Type': 'application/json',
@@ -316,7 +346,7 @@ class ApiService {
     final url = Uri.parse('$baseUrl/api/komunitas');
     final token = await LocalStorage.getToken();
     try {
-      final response = await http.get(
+      final response = await _client.get(
         url,
         headers: token != null ? {'Authorization': 'Bearer $token'} : {},
       ).timeout(const Duration(seconds: 10));
@@ -336,7 +366,7 @@ class ApiService {
     if (token == null) return [];
 
     try {
-      final response = await http.get(
+      final response = await _client.get(
         url,
         headers: {'Authorization': 'Bearer $token'},
       ).timeout(const Duration(seconds: 10));
@@ -357,7 +387,7 @@ class ApiService {
     if (token == null) return false;
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: {'Authorization': 'Bearer $token'},
       ).timeout(const Duration(seconds: 10));
@@ -394,7 +424,7 @@ class ApiService {
         }
       }
 
-      var response = await request.send().timeout(const Duration(seconds: 15));
+      var response = await _client.send(request).timeout(const Duration(seconds: 15));
       return response.statusCode == 200;
     } catch (e) {
       print("Error Create Komunitas: $e");
@@ -408,7 +438,7 @@ class ApiService {
     if (token == null) return [];
 
     try {
-      final response = await http.get(
+      final response = await _client.get(
         url,
         headers: {'Authorization': 'Bearer $token'},
       ).timeout(const Duration(seconds: 10));
@@ -428,7 +458,7 @@ class ApiService {
     if (token == null) return false;
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: {
           'Content-Type': 'application/json',
@@ -447,7 +477,7 @@ class ApiService {
   static Future<List<dynamic>> getBerita() async {
     final url = Uri.parse('$baseUrl/api/berita');
     try {
-      final response = await http.get(url).timeout(const Duration(seconds: 10));
+      final response = await _client.get(url).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return data['data'] ?? [];
@@ -485,7 +515,7 @@ class ApiService {
         }
       }
 
-      var response = await request.send().timeout(const Duration(seconds: 15));
+      var response = await _client.send(request).timeout(const Duration(seconds: 15));
       return response.statusCode == 200;
     } catch (e) {
       print("Error Create Berita: $e");
@@ -514,7 +544,7 @@ class ApiService {
 
     final uri = Uri.parse('$baseUrl/api/products').replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
     try {
-      final response = await http.get(uri).timeout(const Duration(seconds: 10));
+      final response = await _client.get(uri).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return data['data'] ?? [];
@@ -528,7 +558,7 @@ class ApiService {
   static Future<Map<String, dynamic>?> getProductDetail(int productId) async {
     final url = Uri.parse('$baseUrl/api/products/$productId');
     try {
-      final response = await http.get(url).timeout(const Duration(seconds: 10));
+      final response = await _client.get(url).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return data['data'];
@@ -545,7 +575,7 @@ class ApiService {
     if (token == null) return [];
 
     try {
-      final response = await http.get(
+      final response = await _client.get(
         url,
         headers: {'Authorization': 'Bearer $token'},
       ).timeout(const Duration(seconds: 10));
@@ -610,7 +640,7 @@ class ApiService {
         }
       }
 
-      var response = await request.send().timeout(const Duration(seconds: 15));
+      var response = await _client.send(request).timeout(const Duration(seconds: 15));
       return response.statusCode == 200;
     } catch (e) {
       print("Error Create Product: $e");
@@ -624,7 +654,7 @@ class ApiService {
     if (token == null) return false;
 
     try {
-      final response = await http.delete(
+      final response = await _client.delete(
         url,
         headers: {'Authorization': 'Bearer $token'},
       ).timeout(const Duration(seconds: 10));
@@ -641,7 +671,7 @@ class ApiService {
   static Future<List<String>> getKomoditasSlugs() async {
     final url = Uri.parse('$baseUrl/api/komoditas-slugs');
     try {
-      final response = await http.get(url).timeout(const Duration(seconds: 10));
+      final response = await _client.get(url).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         List<dynamic> listData = data['data'] ?? [];
@@ -656,7 +686,7 @@ class ApiService {
   static Future<Map<String, dynamic>?> getTrendHarga(String slug) async {
     final url = Uri.parse('$baseUrl/api/v1/harga-pasar/$slug');
     try {
-      final response = await http.get(url).timeout(const Duration(seconds: 10));
+      final response = await _client.get(url).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return data['data'];
@@ -673,7 +703,7 @@ class ApiService {
     if (token == null) return null;
 
     try {
-      final response = await http.get(
+      final response = await _client.get(
         url,
         headers: {'Authorization': 'Bearer $token'},
       ).timeout(const Duration(seconds: 10));
@@ -694,7 +724,7 @@ class ApiService {
     if (token == null) return null;
 
     try {
-      final response = await http.get(
+      final response = await _client.get(
         url,
         headers: {'Authorization': 'Bearer $token'},
       ).timeout(const Duration(seconds: 10));
@@ -719,7 +749,7 @@ class ApiService {
     if (token == null) return false;
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: {
           'Content-Type': 'application/json',
@@ -745,7 +775,7 @@ class ApiService {
     if (token == null) return [];
 
     try {
-      final response = await http.get(
+      final response = await _client.get(
         url,
         headers: {'Authorization': 'Bearer $token'},
       ).timeout(const Duration(seconds: 10));
@@ -766,7 +796,7 @@ class ApiService {
     if (token == null) return false;
 
     try {
-      final response = await http.put(
+      final response = await _client.put(
         url,
         headers: {
           'Content-Type': 'application/json',
@@ -791,7 +821,7 @@ class ApiService {
     }
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: {
           'Content-Type': 'application/json',
@@ -823,7 +853,7 @@ class ApiService {
     }
 
     try {
-      final response = await http.put(
+      final response = await _client.put(
         url,
         headers: {
           'Content-Type': 'application/json',
@@ -848,7 +878,7 @@ class ApiService {
     if (token == null) return [];
 
     try {
-      final response = await http.get(
+      final response = await _client.get(
         url,
         headers: {'Authorization': 'Bearer $token'},
       ).timeout(const Duration(seconds: 10));
@@ -869,7 +899,7 @@ class ApiService {
     if (token == null) return [];
 
     try {
-      final response = await http.get(
+      final response = await _client.get(
         url,
         headers: {'Authorization': 'Bearer $token'},
       ).timeout(const Duration(seconds: 10));
@@ -890,7 +920,7 @@ class ApiService {
     if (token == null) return false;
 
     try {
-      final response = await http.put(
+      final response = await _client.put(
         url,
         headers: {
           'Content-Type': 'application/json',
@@ -912,7 +942,7 @@ class ApiService {
     if (token == null) return false;
 
     try {
-      final response = await http.put(
+      final response = await _client.put(
         url,
         headers: {
           'Content-Type': 'application/json',
@@ -940,7 +970,7 @@ class ApiService {
     if (token == null) return false;
 
     try {
-      final response = await http.post(
+      final response = await _client.post(
         url,
         headers: {
           'Content-Type': 'application/json',
@@ -967,7 +997,7 @@ class ApiService {
     if (token == null) return [];
 
     try {
-      final response = await http.get(
+      final response = await _client.get(
         url,
         headers: {'Authorization': 'Bearer $token'},
       ).timeout(const Duration(seconds: 10));
